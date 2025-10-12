@@ -1,4 +1,4 @@
-# tudify SimpleWeb 3.0
+# tudify SimpleWeb 3.0.1
 ### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
 <img width="1068" height="696" alt="Screenshot 2025-10-10 at 23 48 06" src="https://github.com/user-attachments/assets/394b3d44-6346-43c0-92c9-e910d56d73e6" />
 
@@ -15,5 +15,9 @@
 ⌘ + R / ctrl + R
 ### Settings page
 ⌘ + U / ctrl + U, then type tudify://settings.
+### Extensions page
+⌘ + U / ctrl + U, then type extensions://
+
+## Note 2: some features may be broken, buggy or messy. 
 
 ## thank you for choosing SimpleWeb.
