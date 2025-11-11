@@ -1,4 +1,4 @@
-# tudify SimpleWeb 3.0.1
+# tudify SimpleWeb 3.0.2
 ### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
 <img width="1068" height="696" alt="Screenshot 2025-10-10 at 23 48 06" src="https://github.com/user-attachments/assets/394b3d44-6346-43c0-92c9-e910d56d73e6" />
 
@@ -42,16 +42,18 @@ document.addEventListener("DOMContentLoaded", function() {
 ```
 
 ### Available functions
-|Method | Parameters | Returns | Description|
-|-------|------------|---------|------------|
-getDeviceInfo() | None | String | Returns CPU, architecture, and OS info. Example: "Intel i5, x64, Windows"|
-reportAPIver() | None | String | Returns the API version, e.g., "1.0"|
-getUserAgent() | None | String | Returns the browser User-Agent string.
-getOS() | None | String | Returns the OS name (Windows, Linux, macOS).
-GetUserTheme() | None | String | Returns the current user theme: "dark" or "light"
-openwindow(url, width, height) | url (string), width (int), height (int) | None | Opens a new SimpleWeb window with the specified URL and dimensions. |
-setWindowTitle(title) | title (string) |None | Changes the title of the current window.
-print(text) | text (string) | None | Prints a message to the browser console. |
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getDeviceInfo()` | None | String | Returns CPU, architecture, and OS info. Example: `"Intel i5, x64, Windows"` |
+| `reportAPIver()` | None | String | Returns the API version, e.g., `"1.0.1"` |
+| `getRamAmount()` | None | String | Returns system RAM amount, e.g., `"16 GB"` |
+| `getUserAgent()` | None | String | Returns the browser User-Agent string |
+| `getOS()` | None | String | Returns the OS name (`Windows`, `Linux`, `macOS`) |
+| `GetUserTheme()` | None | String | Returns the current user theme: `"dark"` or `"light"` |
+| `openwindow(url, width, height)` | `url` (string), `width` (int, default 800), `height` (int, default 600) | None | Opens a new SimpleWeb window with the specified URL and dimensions |
+| `setWindowTitle(title)` | `title` (string) | None | Changes the title of the main browser window (or the last opened window if no main window) |
+| `print(text)` | `text` (string) | None | Prints a message to the Python console |
 
 ### Example Usage
 **Getting device information**
