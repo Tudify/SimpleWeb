@@ -1,54 +1,14 @@
-import sys, os, urllib.request, platform #AHHH
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTabWidget, QFileDialog, QShortcut,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QTextEdit, QDockWidget)
-from PyQt5.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot
-from PyQt5.QtGui import QIcon, QKeySequence
+import sys, os, platform, urllib.parse, json
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QMessageBox,QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTabWidget, QFileDialog, QShortcut,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QTextEdit, QDockWidget)
+from PyQt5.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot 
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile
-from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtWebChannel import QWebChannel #typing test
+from pathlib import Path
+import psutil
 
-Search_engine = "Google"  # Default search engine
-if Search_engine == "Google":
-    Search_URL = "https://www.google.com/search?q="
-elif Search_engine == "DuckDuckGo":
-    Search_URL = "https://duckduckgo.com/?q="
-elif Search_engine == "Bing":
-    Search_URL = "https://www.bing.com/search?q="
-
-AI_Service = "ChatGPT"  # Default AI service
-if AI_Service == "ChatGPT":
-    AI_URL = "https://chatgpt.com/"
-elif AI_Service == "Amanda AI 2":
-    AI_URL = "https://poe.com/Amanda-AI/"
-elif AI_Service == "Claude":
-    AI_URL = "https://claude.ai/"
-elif AI_Service == "Gemini":
-    AI_URL = "https://gemini.google.com/"
-
-cpuname = platform.processor()
-os_name = platform.system()
-arch = platform.architecture()
-EngineName = "SWE-Multiplatform"
-EngineVer = "3.0.1"
-APIver = "1.0"
-
-if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
-    os_namefinal = "Macintosh; Intel Mac OS X 10_15_7"
-    os_namereport = "macOS"
-if os_name == "Linux":
-    os_namefinal = "X11; Linux " + arch
-    os_namereport = "Linux"
-else:
-    os_namefinal = "Windows NT 10.0; Win64; x64"
-    os_namereport = "Windows"
-
-UserAgent = (
-    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    f"{EngineName}/{EngineVer} Safari/605.1.15"
-)
-
-ChromiumUserAgent = (
-    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    f"Chromium/141.0 Safari/605.1.15"
-)
+mem = psutil.virtual_memory().total / (1024 ** 3)
+print(str(mem) + "GB RAM")
 
 class ExtensionsWindow(QDialog):
     def __init__(self, parent=None):
@@ -78,13 +38,27 @@ class ExtensionsWindow(QDialog):
         layout.addWidget(button_box)
         self.setLayout(layout)
 
-    def load_extensions(self, layout):
-        extensions = {
-            "AI sidebar [beta] (ctrl + I)": False,
-            "Chromium Spoofer [alpha]": False,
-        }
 
+    def load_extensions(self, layout):
+        # Path to file in same directory as this script
+        base_dir = Path(__file__).resolve().parent
+        extensions_file = base_dir / "extensions.json"
+        if extensions_file.exists():
+            try:
+                with extensions_file.open("r", encoding="utf-8") as f:
+                    extensions = json.load(f)
+            except Exception as e:
+                print(f"Failed to read {extensions_file.name}: {e}")
+                extensions = {
+                    "AI sidebar [beta] (ctrl + I)": False,
+                    "Wikipedia Sidebar (ctrl + P)": False,
+                    "Quick Notes (ctrl + N)": False,
+                    "Chromium Spoofer [alpha]": False,
+                }
+        else:
+            print("error")
         extop = QSettings("Tudify", "SimpleWeb-Extensions")
+
         for name, default_state in extensions.items():
             state = extop.value(name, default_state, type=bool)
             checkbox = QCheckBox(name)
@@ -130,11 +104,15 @@ class SimpleWebAPI(QObject):
 
     @pyqtSlot(result=str)
     def getDeviceInfo(self):
-        return f"{cpuname}, {arch}, {os_name}"
+        return f"{cpuname}, {arch[0]}, {os_namereport}"
 
     @pyqtSlot(result=str)
     def reportAPIver(self):
         return APIver
+
+    @pyqtSlot(result=str)
+    def getRamAmount(self):
+        return str(mem) + " GB"
 
     @pyqtSlot(result=str)
     def getUserAgent(self):
@@ -142,7 +120,7 @@ class SimpleWebAPI(QObject):
 
     @pyqtSlot(result=str)
     def getOS(self):
-        return os_namereport
+        return os_name
 
     @pyqtSlot(result=str)
     def GetUserTheme(self):
@@ -201,7 +179,7 @@ class SettingsWindow(QDialog):
         self.ailabel = QLabel("Choose your AI service:")
         layout.addWidget(self.ailabel)
         self.AI_combo = QComboBox()
-        self.AI_combo.addItems(["Claude", "Amanda AI 2", "ChatGPT", "Gemini"])
+        self.AI_combo.addItems(["Nora AI", "Claude", "Amanda AI 2", "ChatGPT", "Gemini"])
         layout.addWidget(self.AI_combo)
         self.load_settings()
         layout.addSpacing(20)
@@ -217,7 +195,7 @@ class SettingsWindow(QDialog):
         self.new_tab_url_edit.setText(settings.value("new_tab_url", "https://tudify.co.uk/simpleweb/newtab.htm"))
         self.theme_combo.setCurrentText(settings.value("theme", "Dark"))
         self.search_engine_combo.setCurrentText(settings.value("search_engine", "Google"))
-        self.AI_combo.setCurrentText(settings.value("AI_service", "Claude"))
+        self.AI_combo.setCurrentText(settings.value("AI_service", "Nora AI"))
         default_new_tab_checked = settings.value("default_new_tab_checked", False)
         self.default_new_tab_checkbox.setChecked(default_new_tab_checked == "true")
 
@@ -251,6 +229,10 @@ class DebugWindow(QDialog):
         layout.addWidget(self.uatitle)
         self.uadisplay = QLabel(UserAgent)
         layout.addWidget(self.uadisplay)
+        self.ostitle = QLabel("Versioning")
+        layout.addWidget(self.ostitle)
+        self.osdisplay = QLabel(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]}")
+        layout.addWidget(self.osdisplay)
         self.theme_combo = QComboBox()
         layout.addSpacing(20)
         button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -263,7 +245,6 @@ class BrowserWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Tudify SimpleWeb")
         self.setGeometry(300, 100, 1000, 600)
-        self.setWindowIcon(QIcon("ICO.png"))
         self.refresh_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
         self.refresh_shortcut.activated.connect(self.refresh_page)
         self.shortcut_close_tab = QShortcut(QKeySequence("Ctrl+W"), self)
@@ -296,7 +277,102 @@ class BrowserWindow(QMainWindow):
         self.create_ai_sidebar()  # Initialize the AI sidebar
         self.ai_shortcut = QShortcut(QKeySequence("Ctrl+I"), self)
         self.ai_shortcut.activated.connect(self.toggle_ai_sidebar)
+
+        self.create_quick_notes_sidebar()  # Initialize the Quick Notes sidebar
+        self.quick_notes_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        self.quick_notes_shortcut.activated.connect(self.toggle_quick_notes_sidebar)
+
+        if os_name in ["Windows XP", "Windows Vista", "Windows 7", "Windows 8", "Windows 8.1"]:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle("Insecure Operating System")
+            msg.setText(
+                "You are using an older version of Windows, which is no longer supported"
+                "and is insecure. Please consider upgrading to a newer version of Windows."
+                "tudify and the SimpleWeb team accept zero liability for any damage caused "
+                "by using this software on an insecure OS."
+            )
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+
     
+    def toggle_quick_notes_sidebar(self):
+        if not self.is_quick_notes_enabled():
+            return  # Ignore if extension disabled
+
+        if not hasattr(self, 'quick_notes_sidebar'):
+            self.create_quick_notes_sidebar()
+
+        if self.quick_notes_sidebar.isVisible():
+            self.quick_notes_sidebar.hide()
+        else:
+            self.quick_notes_sidebar.show()
+
+    def is_quick_notes_enabled(self):
+        settings = QSettings("Tudify", "SimpleWeb-Extensions")
+        return settings.value("Quick Notes (ctrl + N)", False, type=bool)
+        
+    def create_quick_notes_sidebar(self):
+        self.quick_notes_sidebar = QDockWidget(self)
+        self.quick_notes_sidebar.setAllowedAreas(
+            Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea | Qt.BottomDockWidgetArea | Qt.TopDockWidgetArea
+        )
+
+        self.notes_editor = QTextEdit()
+        self.notes_editor.setPlaceholderText("Type your notes here...")
+        self.notes_editor.setStyleSheet(self.get_quick_notes_stylesheet(self.theme))
+
+        self.quick_notes_sidebar.setWidget(self.notes_editor)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.quick_notes_sidebar)
+        self.quick_notes_sidebar.hide()
+
+        # Custom title bar
+        title_widget = QWidget()
+        layout = QHBoxLayout(title_widget)
+        layout.setContentsMargins(5, 0, 5, 0)
+        title_label = QLabel("Quick Notes")
+        layout.addWidget(title_label)
+        layout.addStretch()
+
+        if self.theme.lower() == "dark":
+            title_widget.setStyleSheet("""
+                background-color: #292c30;
+                color: #ffffff;
+                font-weight: bold;
+                padding: 4px;
+            """)
+        else:
+            title_widget.setStyleSheet("""
+                background-color: #f0f0f0;
+                color: #000000;
+                font-weight: bold;
+                padding: 4px;
+            """)
+
+        self.quick_notes_sidebar.setTitleBarWidget(title_widget)
+
+    def get_quick_notes_stylesheet(self, theme):
+        if theme.lower() == "dark":
+            return """
+                QTextEdit {
+                    background-color: #292c30;
+                    color: #ffffff;
+                    font-family: hack, consolas, monospace;
+                    font-size: 14px;
+                    padding: 10px;
+                }
+            """
+        else:
+            return """
+                QTextEdit {
+                    background-color: #f0f0f0;
+                    color: #000000;
+                    font-family: hack, consolas, monospace;
+                    font-size: 14px;
+                    padding: 10px;
+                }
+            """
+
     def toggle_ai_sidebar(self):
         if not self.is_ai_sidebar_enabled():
             return  # Ignore if extension disabled
@@ -309,7 +385,7 @@ class BrowserWindow(QMainWindow):
     def chromium_spoofer_enabled(self):
         settings = QSettings("Tudify", "SimpleWeb-Extensions")
         # keep the same key you used when building the ExtensionsWindow
-        return settings.value("Chromium Spoofer [beta]", False, type=bool)
+        return settings.value("Chromium Spoofer [alpha]", False, type=bool)
 
     def apply_chromium_spoofer(self):
         """Apply the current Chromium Spoofer setting to the default QWebEngineProfile."""
@@ -331,13 +407,12 @@ class BrowserWindow(QMainWindow):
         return settings.value("AI sidebar [beta] (ctrl + I)", False, type=bool)
         
     def create_ai_sidebar(self):
-        self.ai_sidebar = QDockWidget("AI Sidebar", self)
+        self.ai_sidebar = QDockWidget(self)
         self.ai_sidebar.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
 
         self.ai_browser = QWebEngineView()
-
-        # Map AI service names to URLs
         ai_services = {
+            "Nora AI": "https://tudify.co.uk/Luna-AI/",
             "ChatGPT": "https://chat.openai.com/",
             "Amanda AI 2": "https://poe.com/Amanda-AI/",
             "Claude": "https://claude.ai/",
@@ -345,16 +420,28 @@ class BrowserWindow(QMainWindow):
         }
         ai_url = ai_services.get(self.AI_service, "https://chat.openai.com/")
         self.ai_browser.setUrl(QUrl(ai_url))
-
         self.ai_browser.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         self.ai_browser.settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
-
-        profile = QWebEngineProfile.defaultProfile()
-        profile.setHttpUserAgent(UserAgent)
+        self.http_user_agent = ChromiumUserAgent
 
         self.ai_sidebar.setWidget(self.ai_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.ai_sidebar)
         self.ai_sidebar.hide()
+
+        # Custom title bar
+        title_widget = QWidget()
+        layout = QHBoxLayout(title_widget)
+        layout.setContentsMargins(5, 0, 5, 0)
+        title_label = QLabel("AI Sidebar")
+        layout.addWidget(title_label)
+        layout.addStretch()
+        title_widget.setStyleSheet("""
+            background-color: #292c30;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 4px;
+        """)
+        self.ai_sidebar.setTitleBarWidget(title_widget)
 
     def load_settings(self):
         settings = QSettings("Tudify", "SimpleWeb")
@@ -362,7 +449,7 @@ class BrowserWindow(QMainWindow):
         self.theme = settings.value("theme", "dark")
         self.default_new_tab_enabled = settings.value("default_new_tab_checked", "false") == "true"
         self.search_engine = settings.value("search_engine", "Google")
-        self.AI_service = settings.value("AI_service", "Claude")
+        self.AI_service = settings.value("AI_service", "Nora AI")
         self.apply_chromium_spoofer()
 
     def save_settings(self):
@@ -434,25 +521,22 @@ class BrowserWindow(QMainWindow):
 
         elif not text.startswith(('http://', 'https://')):
             # Use selected search engine
+            
             search_eng = self.search_engine.lower()
             if '.' not in text:  # assume search
                 if search_eng == "google":
-                    url_to_load = f"https://www.google.com/search?q={text}"
+                    url_to_load = f"https://www.google.com/search?q={urllib.parse.quote_plus(text)}"
                 elif search_eng == "duckduckgo":
-                    url_to_load = f"https://duckduckgo.com/?q={text}"
+                    url_to_load = f"https://duckduckgo.com/?q={urllib.parse.quote_plus(text)}"
                 elif search_eng == "bing":
-                    url_to_load = f"https://www.bing.com/search?q={text}"
+                    url_to_load = f"https://www.bing.com/search?q={urllib.parse.quote_plus(text)}"
             else:
                 url_to_load = 'https://' + text
 
         else:
             url_to_load = text  # already has https/http
 
-        # Check if reachable
-        try:
-            urllib.request.urlopen(url_to_load, timeout=5)
-        except Exception:
-            url_to_load = 'https://tudify.co.uk/simpleweb/404/'
+        # No need to pre-check URL reachability; let the browser handle errors
 
         # Load the URL in the current tab
         current_browser = self.tabs.currentWidget()
@@ -582,19 +666,11 @@ class BrowserWindow(QMainWindow):
     def create_tab_widget(self):
         self.tabs = QTabWidget()
         self.tabs.tabCloseRequested.connect(lambda index: self.tabs.removeTab(index))
-        self.back_button = QPushButton('⏴')
-        self.back_button.setFixedSize(40, 35)
-        self.back_button.clicked.connect(self.go_back)
-        self.new_tab_button = QPushButton('+')
-        self.new_tab_button.setFixedSize(40, 35)
-        self.new_tab_button.clicked.connect(lambda: self.add_new_tab(QUrl(self.new_tab_url)))
-        corner_widget = QWidget()
-        corner_layout = QHBoxLayout(corner_widget)
-        corner_layout.setContentsMargins(0, 0, 0, 0)
-        corner_layout.setSpacing(4)
-        corner_layout.addWidget(self.back_button)
-        corner_layout.addWidget(self.new_tab_button)
-        self.tabs.setCornerWidget(corner_widget, Qt.TopRightCorner)
+        self.tabs.setTabPosition(QTabWidget.South)
+        tabbar = self.tabs.tabBar()
+        tabbar.setExpanding(False)
+        tabbar.setLayoutDirection(Qt.LeftToRight)
+        tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0; } QTabBar::tab { margin-right: 2px; }")
         self.central_layout.addWidget(self.tabs)
         self.add_new_tab(QUrl('https://tudify.co.uk/simpleweb/newtab.htm'))
         self.channel = QWebChannel(self.tabs.currentWidget().page())
@@ -653,6 +729,7 @@ class BrowserWindow(QMainWindow):
         ai_services = {
             "ChatGPT": "https://chat.openai.com/",
             "Amanda AI 2": "https://poe.com/Amanda-AI/",
+            "Nora AI": "https://tudify.co.uk/Luna-AI/",
             "Claude": "https://claude.ai/",
             "Gemini": "https://gemini.google.com/"
         }
@@ -705,9 +782,61 @@ class BrowserWindow(QMainWindow):
         else:
             self.showNormal()
 
+Search_engine = "Google"  # Default search engine
+if Search_engine == "Google":
+    Search_URL = "https://www.google.com/search?q="
+elif Search_engine == "DuckDuckGo":
+    Search_URL = "https://duckduckgo.com/?q="
+elif Search_engine == "Bing":
+    Search_URL = "https://www.bing.com/search?q="
+
+AI_Service = "Nora AI"  # Default AI service
+if AI_Service == "ChatGPT":
+    AI_URL = "https://chatgpt.com/"
+elif AI_Service == "Nora AI":
+    AI_URL = "https://tudify.co.uk/Luna-AI/"
+elif AI_Service == "Amanda AI 2":
+    AI_URL = "https://poe.com/Amanda-AI/"
+elif AI_Service == "Claude":
+    AI_URL = "https://claude.ai/"
+elif AI_Service == "Gemini":
+    AI_URL = "https://gemini.google.com/"
+
+cpuname = platform.processor()
+os_name = platform.system()
+arch = platform.architecture()
+builtonIDE = "SimpleCode Internal 0.4.0" #if not using simplecode, change this line or it'll build weird
+EngineName = "SWE-Multiplatform"
+EngineVer = "3.0.2"
+APIver = "1.0.1"  # changed back to 1.0 because 1.1 had severe security flaws
+
+if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
+    os_namefinal = "Macintosh; Intel Mac OS X 10_15_7"
+    os_namereport = "macOS"
+if os_name == "Linux":
+    os_namefinal = "X11; Linux " + arch
+    os_namereport = "Linux"
+if os_name.startswith("Windows"):
+    os_namefinal = "Windows NT 10.0; Win64; x64"
+    os_namereport = "Windows"
+
+print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]}, built with {builtonIDE}")
+
+UserAgent = (
+    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+    f"{EngineName}/{EngineVer} Safari/605.1.15"
+)
+
+ChromiumUserAgent = (
+    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+    f"Chromium/141.0 Safari/605.1.15"
+)
+
+
 class MainApp(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
+        self.setStyle("Fusion")
     def create_main_window(self, splash):
         main_window = BrowserWindow()
         main_window.show()
