@@ -1,6 +1,6 @@
 # tudify SimpleWeb 3.0.2
 ### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
-<img width="1068" height="696" alt="Screenshot 2025-10-10 at 23 48 06" src="https://github.com/user-attachments/assets/394b3d44-6346-43c0-92c9-e910d56d73e6" />
+<img width="1822" height="1118" alt="Screenshot 2025-11-11 at 18 21 17" src="https://github.com/user-attachments/assets/6b711711-b7de-46a6-92a8-6f553107edd6" />
 
 ### note: macOS builds will appear to crash on start. give it ~15 seconds and it will open.
 
