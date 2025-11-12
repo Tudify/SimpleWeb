@@ -7,9 +7,6 @@ from PyQt5.QtWebChannel import QWebChannel #typing test
 from pathlib import Path
 import psutil
 
-mem = psutil.virtual_memory().total / (1024 ** 3)
-print(str(mem) + "GB RAM")
-
 class ExtensionsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -50,10 +47,7 @@ class ExtensionsWindow(QDialog):
             except Exception as e:
                 print(f"Failed to read {extensions_file.name}: {e}")
                 extensions = {
-                    "AI sidebar [beta] (ctrl + I)": False,
-                    "Wikipedia Sidebar (ctrl + P)": False,
-                    "Quick Notes (ctrl + N)": False,
-                    "Chromium Spoofer [alpha]": False,
+                    "Error": True,
                 }
         else:
             print("error")
@@ -273,6 +267,10 @@ class BrowserWindow(QMainWindow):
         self.api = SimpleWebAPI()
         self.channel.registerObject("SimpleWeb", self.api)
         self.tabs.currentWidget().page().setWebChannel(self.channel)
+
+        self.create_quick_research_sidebar()  # Initialize the Quick Research sidebar
+        self.quick_research_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.quick_research_shortcut.activated.connect(self.toggle_quick_research_sidebar)
         
         self.create_ai_sidebar()  # Initialize the AI sidebar
         self.ai_shortcut = QShortcut(QKeySequence("Ctrl+I"), self)
@@ -294,8 +292,19 @@ class BrowserWindow(QMainWindow):
             )
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
+ 
+    def toggle_quick_research_sidebar(self):
+        if not self.is_quick_research_enabled():
+            return  # Ignore if extension disabled
 
-    
+        if not hasattr(self, 'quick_research_sidebar'):
+            self.create_quick_research_sidebar()
+
+        if self.quick_research_sidebar.isVisible():
+            self.quick_research_sidebar.hide()
+        else:
+            self.quick_research_sidebar.show()
+
     def toggle_quick_notes_sidebar(self):
         if not self.is_quick_notes_enabled():
             return  # Ignore if extension disabled
@@ -394,17 +403,50 @@ class BrowserWindow(QMainWindow):
             if self.chromium_spoofer_enabled():
                 # Apply the chromium UA (keeps the rest of your UA info layout)
                 profile.setHttpUserAgent(ChromiumUserAgent)
-                print("Chromium Spoofer: enabled — UA set to ChromiumUserAgent")
+                print("Chromium Spoofer enabled")
             else:
                 # Restore your app's normal UA
                 profile.setHttpUserAgent(UserAgent)
-                print("Chromium Spoofer: disabled — UA set to UserAgent")
+                print("Chromium Spoofer disabled")
         except Exception as e:
             print("apply_chromium_spoofer error:", e)
 
     def is_ai_sidebar_enabled(self):
         settings = QSettings("Tudify", "SimpleWeb-Extensions")
         return settings.value("AI sidebar [beta] (ctrl + I)", False, type=bool)
+    
+    def is_quick_research_enabled(self):
+        settings = QSettings("Tudify", "SimpleWeb-Extensions")
+        return settings.value("Quick Research (ctrl + O)", False, type=bool)
+    
+    def create_quick_research_sidebar(self):
+        self.quick_research_sidebar = QDockWidget(self)
+        self.quick_research_sidebar.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
+
+        self.quick_research_browser = QWebEngineView()
+        self.quick_research_browser.setUrl(QUrl("https://tudify.co.uk/Luna-AI/research/"))
+        self.quick_research_browser.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        self.quick_research_browser.settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.http_user_agent = ChromiumUserAgent
+
+        self.quick_research_sidebar.setWidget(self.quick_research_browser)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.quick_research_sidebar)
+        self.quick_research_sidebar.hide()
+
+        # Custom title bar
+        title_widget = QWidget()
+        layout = QHBoxLayout(title_widget)
+        layout.setContentsMargins(5, 0, 5, 0)
+        title_label = QLabel("[AI] Quick Research")
+        layout.addWidget(title_label)
+        layout.addStretch()
+        title_widget.setStyleSheet("""
+            background-color: #292c30;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 4px;
+        """)
+        self.quick_research_sidebar.setTitleBarWidget(title_widget)
         
     def create_ai_sidebar(self):
         self.ai_sidebar = QDockWidget(self)
@@ -729,7 +771,7 @@ class BrowserWindow(QMainWindow):
         ai_services = {
             "ChatGPT": "https://chat.openai.com/",
             "Amanda AI 2": "https://poe.com/Amanda-AI/",
-            "Nora AI": "https://tudify.co.uk/Luna-AI/",
+            "Nora AI": "https://tudify.co.uk/Luna-AI/", # this URL would be changed if it didnt break old versions lol
             "Claude": "https://claude.ai/",
             "Gemini": "https://gemini.google.com/"
         }
@@ -805,10 +847,11 @@ elif AI_Service == "Gemini":
 cpuname = platform.processor()
 os_name = platform.system()
 arch = platform.architecture()
-builtonIDE = "SimpleCode Internal 0.4.0" #if not using simplecode, change this line or it'll build weird
+builtonIDE = "VS code 1.105.1" # SimpleCode Internal 1.0 hits harder
 EngineName = "SWE-Multiplatform"
-EngineVer = "3.0.2"
-APIver = "1.0.1"  # changed back to 1.0 because 1.1 had severe security flaws
+EngineVer = "3.0.3"
+APIver = "1.0.1"  # same as SimpleWeb 3.0.2
+mem = psutil.virtual_memory().total / (1024 ** 3)
 
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
     os_namefinal = "Macintosh; Intel Mac OS X 10_15_7"
@@ -820,7 +863,7 @@ if os_name.startswith("Windows"):
     os_namefinal = "Windows NT 10.0; Win64; x64"
     os_namereport = "Windows"
 
-print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]}, built with {builtonIDE}")
+print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
 
 UserAgent = (
     f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
