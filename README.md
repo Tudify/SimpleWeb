@@ -1,4 +1,4 @@
-# tudify SimpleWeb 3.0.2
+# tudify SimpleWeb 3.0
 ### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
 <img width="1822" height="1118" alt="Screenshot 2025-11-11 at 18 21 17" src="https://github.com/user-attachments/assets/6b711711-b7de-46a6-92a8-6f553107edd6" />
 
