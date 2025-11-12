@@ -19,6 +19,44 @@
 ⌘ + U / ctrl + U, then type extensions://
 ## Note 2: some features may be broken, buggy or messy. 
 
+# Note on Windows:
+<b> SimpleWeb team does not offer prebuilt Windows Binaries. </b>
+You can build SimpleWeb from source with no issue, as it is officially supported.
+## Build Instructions
+You will need ``` Python 3.11 or later ```, ```Command Prompt``` and an ```administrator account```
+### Step One:
+#### Install dependencies
+run the following command:
+
+On Windows:
+``` pip install pyqt5 pyqtwebengine psutil pyinstaller ```
+
+On Linux or macOS:
+``` pip3 install pyqt5 pyqtwebengine psutil pyinstaller ```
+
+### Step two:
+#### Create binary
+
+locate your folder path that simpleweb.py and extensions.json are in, then cd to it like this
+
+``` cd /users/you/folder/ ``` 
+
+<small> this is not an actual command for your system, you need to find your folder path to replace /users/you/folder </small>
+
+when you are in your folder in your command prompt, type the following
+
+on Linux and macOS:
+
+``` pyinstaller --noconsole --onefile --add-data "extensions.json:." simpleweb.py ```
+
+on Windows 
+
+``` pyinstaller --noconsole --onefile --add-data "extensions.json;." simpleweb.py ```
+
+you have now built simpleweb, look inside the folder simpleweb.py is, and look for a new folder called 'Dist'
+
+your new binary is there.
+
 # API documentation
 **the SimpleWeb API allows for extra communication between the SimpleWeb browser and the website its running on.**
 ## examples and info
