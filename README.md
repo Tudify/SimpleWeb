@@ -57,4 +57,7 @@ you have now built simpleweb, look inside the folder simpleweb.py is, and look f
 
 your new binary is there.
 
+## API Documentation
+[View API Documentation](API.md)
+
 ## thank you for choosing SimpleWeb.
