@@ -29,7 +29,8 @@ document.addEventListener("DOMContentLoaded", function() {
 | `getRamAmount()` | None | String | Returns system RAM amount, e.g., `"16 GB"` |
 | `getUserAgent()` | None | String | Returns the browser User-Agent string |
 | `getOS()` | None | String | Returns the OS name (`Windows`, `Linux`, `macOS`) |
-| `GetUserTheme()` | None | String | Returns the current user theme: `"dark"` or `"light"` |
+| `getUserTheme()` | None | String | Returns the current user theme: `"dark"` or `"light"` |
+| `getSearchEngine()` | None | String | Returns the current user Search Engine: `"Google"`, `Bing` or `"DuckDuckGo"` |
 | `openwindow(url, width, height)` | `url` (string), `width` (int, default 800), `height` (int, default 600) | None | Opens a new SimpleWeb window with the specified URL and dimensions |
 | `setWindowTitle(title)` | `title` (string) | None | Changes the title of the main browser window (or the last opened window if no main window) |
 | `print(text)` | `text` (string) | None | Prints a message to the Python console |
