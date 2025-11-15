@@ -22,18 +22,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
 ### Available functions
 
-| Method | Parameters | Returns | Description |
-|--------|------------|---------|-------------|
-| `getDeviceInfo()` | None | String | Returns CPU, architecture, and OS info. Example: `"Intel i5, x64, Windows"` |
-| `reportAPIver()` | None | String | Returns the API version, e.g., `"1.0.1"` |
-| `getRamAmount()` | None | String | Returns system RAM amount, e.g., `"16 GB"` |
-| `getUserAgent()` | None | String | Returns the browser User-Agent string |
-| `getOS()` | None | String | Returns the OS name (`Windows`, `Linux`, `macOS`) |
-| `getUserTheme()` | None | String | Returns the current user theme: `"dark"` or `"light"` |
-| `getSearchEngine()` | None | String | Returns the current user Search Engine: `"Google"`, `Bing` or `"DuckDuckGo"` |
-| `openwindow(url, width, height)` | `url` (string), `width` (int, default 800), `height` (int, default 600) | None | Opens a new SimpleWeb window with the specified URL and dimensions |
-| `setWindowTitle(title)` | `title` (string) | None | Changes the title of the main browser window (or the last opened window if no main window) |
-| `print(text)` | `text` (string) | None | Prints a message to the Python console |
+| Method | Parameters | Returns | Description | Added in API ver |
+|--------|------------|---------|-------------|------------------|
+| `getDeviceInfo()` | None | String | Returns CPU, architecture, and OS info. Example: `"Intel i5, x64, Windows"` | 1.0 |
+| `reportAPIver()` | None | String | Returns the API version, e.g., `"1.0.1"` | 1.0 |
+| `getRamAmount()` | None | String | Returns system RAM amount, e.g., `"16 GB"` | 1.0.1 |
+| `getUserAgent()` | None | String | Returns the browser User-Agent string | 1.0 |
+| `getOS()` | None | String | Returns the OS name (`Windows`, `Linux`, `macOS`) | 1.0 |
+| `getUserTheme()` | None | String | Returns the current user theme: `"dark"` or `"light"` | 1.0 for GetUserTheme, or 1.0.2 for getUserTheme |
+| `getSearchEngine()` | None | String | Returns the current user Search Engine: `"Google"`, `Bing` or `"DuckDuckGo"` | 1.0.2 |
+| `openwindow(url, width, height)` | `url` (string), `width` (int, default 800), `height` (int, default 600) | None | Opens a new SimpleWeb window with the specified URL and dimensions | 1.0 |
+| `setWindowTitle(title)` | `title` (string) | None | Changes the title of the main browser window (or the last opened window if no main window) | 1.0 |
+| `print(text)` | `text` (string) | None | Prints a message to the Python console | 1.0 |
 
 ### Example Usage
 **Getting device information**
