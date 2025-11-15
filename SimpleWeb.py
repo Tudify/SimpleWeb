@@ -92,7 +92,6 @@ class SimpleWebAPI(QObject):
         layout.addWidget(browser)
         window.setCentralWidget(central_widget)
 
-        # Show and store reference
         window.show()
         self.windows.append(window)
 
@@ -103,6 +102,11 @@ class SimpleWebAPI(QObject):
     @pyqtSlot(result=str)
     def reportAPIver(self):
         return APIver
+    
+    @pyqtSlot(result=str)
+    def getSearchEngine(self):
+        settings = QSettings("Tudify", "SimpleWeb")
+        return settings.value("search_engine", "Google")
 
     @pyqtSlot(result=str)
     def getRamAmount(self):
@@ -117,11 +121,16 @@ class SimpleWebAPI(QObject):
         return os_name
 
     @pyqtSlot(result=str)
-    def GetUserTheme(self):
+    def getUserTheme(self):
         settings = QSettings("Tudify", "SimpleWeb")
         theme = settings.value("theme", "dark")
         return theme
 
+    @pyqtSlot(result=str)
+    def GetUserTheme(self):
+        print("GetUserTheme is planned to be deprecated. Please migrate to getUserTheme when possible.")
+        return self.getUserTheme()
+    
     @pyqtSlot(str)
     def print(self, text):
         print(text)
@@ -225,7 +234,7 @@ class DebugWindow(QDialog):
         layout.addWidget(self.uadisplay)
         self.ostitle = QLabel("Versioning")
         layout.addWidget(self.ostitle)
-        self.osdisplay = QLabel(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]}")
+        self.osdisplay = QLabel(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} RAM on {cpuname}, built with {builtonIDE}")
         layout.addWidget(self.osdisplay)
         self.theme_combo = QComboBox()
         layout.addSpacing(20)
@@ -239,6 +248,7 @@ class BrowserWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Tudify SimpleWeb")
         self.setGeometry(300, 100, 1000, 600)
+        print(f"SimpleWebAPI v{APIver}")
         self.refresh_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
         self.refresh_shortcut.activated.connect(self.refresh_page)
         self.shortcut_close_tab = QShortcut(QKeySequence("Ctrl+W"), self)
@@ -407,7 +417,6 @@ class BrowserWindow(QMainWindow):
             else:
                 # Restore your app's normal UA
                 profile.setHttpUserAgent(UserAgent)
-                print("Chromium Spoofer disabled")
         except Exception as e:
             print("apply_chromium_spoofer error:", e)
 
@@ -736,6 +745,7 @@ class BrowserWindow(QMainWindow):
         settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebGLEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebRTCPublicInterfacesOnly, False)
+        settings.setFontFamily(QWebEngineSettings.StandardFont, "Hack")
         profile = QWebEngineProfile.defaultProfile()
         profile.setHttpUserAgent(UserAgent)
         profile.setHttpCacheMaximumSize(10240)
@@ -849,8 +859,8 @@ os_name = platform.system()
 arch = platform.architecture()
 builtonIDE = "VS code 1.105.1" # SimpleCode Internal 1.0 hits harder
 EngineName = "SWE-Multiplatform"
-EngineVer = "3.0.3"
-APIver = "1.0.1"  # same as SimpleWeb 3.0.2
+EngineVer = "3.0.4"
+APIver = "1.0.2" 
 mem = psutil.virtual_memory().total / (1024 ** 3)
 
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
@@ -864,6 +874,16 @@ if os_name.startswith("Windows"):
     os_namereport = "Windows"
 
 print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
+
+if cpuname == "arm" and os_namereport == "macOS":
+    cpunamefinal = "Apple Silicon"
+else:
+    cpunamefinal = "Intel"
+
+if os_namereport == "macOS":
+    print(f"SimpleWeb on {os_namereport} ({cpunamefinal})")
+else:
+    print(f"SimpleWeb on {os_namereport}")
 
 UserAgent = (
     f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
