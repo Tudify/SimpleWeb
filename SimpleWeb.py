@@ -1,11 +1,48 @@
-import sys, os, platform, urllib.parse, json
+import sys, os, platform, urllib.parse, json, psutil, subprocess
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QMessageBox,QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTabWidget, QFileDialog, QShortcut,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QTextEdit, QDockWidget)
-from PyQt5.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot 
+from PyQt5.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop
 from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile, QWebEnginePage
 from PyQt5.QtWebChannel import QWebChannel #typing test
 from pathlib import Path
-import psutil
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+exe_path = os.path.join(script_dir, "simpleweblib")
+result = subprocess.run([exe_path], capture_output=True, text=True)
+print(result.stdout)
+
+class getwebpage(QWebEnginePage):
+    """Load a URL and return the rendered HTML source code."""
+    def __init__(self):
+        # Only create one QApplication instance globally
+        self.app = QApplication.instance() or QApplication(sys.argv)
+        super().__init__()
+
+        self.html = None
+        self.loadFinished.connect(self._on_load_finished)
+
+    def fetch(self, url: str) -> str:
+        self.html = None
+        self._loop = QEventLoop()
+
+        self.load(QUrl(url))
+        print("Loading URL:", url)
+        self._loop.exec_()  # Wait until load finishes
+
+        return self.html
+
+    def _on_load_finished(self, ok: bool):
+        if not ok:
+            self.html = ""
+            self._loop.quit()
+            return
+
+        # Retrieve the rendered HTML
+        self.toHtml(self._store_html)
+
+    def _store_html(self, html: str):
+        self.html = html
+        self._loop.quit()
 
 class ExtensionsWindow(QDialog):
     def __init__(self, parent=None):
@@ -273,10 +310,6 @@ class BrowserWindow(QMainWindow):
         self.url_popup_width = 400
         self.url_popup_height = 40
         self.update_url_popup_position()
-        self.channel = QWebChannel(self.tabs.currentWidget().page())
-        self.api = SimpleWebAPI()
-        self.channel.registerObject("SimpleWeb", self.api)
-        self.tabs.currentWidget().page().setWebChannel(self.channel)
 
         self.create_quick_research_sidebar()  # Initialize the Quick Research sidebar
         self.quick_research_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
@@ -724,10 +757,6 @@ class BrowserWindow(QMainWindow):
         tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0; } QTabBar::tab { margin-right: 2px; }")
         self.central_layout.addWidget(self.tabs)
         self.add_new_tab(QUrl('https://tudify.co.uk/simpleweb/newtab.htm'))
-        self.channel = QWebChannel(self.tabs.currentWidget().page())
-        self.api = SimpleWebAPI()
-        self.channel.registerObject("SimpleWeb", self.api)
-        self.tabs.currentWidget().page().setWebChannel(self.channel)
 
     def add_new_tab(self, qurl):
         if qurl is None or qurl.isEmpty():
@@ -859,7 +888,7 @@ os_name = platform.system()
 arch = platform.architecture()
 builtonIDE = "VS code 1.105.1" # SimpleCode Internal 1.0 hits harder
 EngineName = "SWE-Multiplatform"
-EngineVer = "3.0.4"
+EngineVer = "3.0.5"
 APIver = "1.0.2" 
 mem = psutil.virtual_memory().total / (1024 ** 3)
 
