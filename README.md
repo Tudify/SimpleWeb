@@ -52,14 +52,14 @@ on Linux and macOS:
 
 ```
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
-pyinstaller --onefile --add-data "extensions.json:." --add-binary "simpleweblib:." SimpleWeb.py           
+pyinstaller --onefile --add-data "extensions.json:." --add-data "info.json:." --add-binary "simpleweblib:." SimpleWeb.py
 ```
 
 on Windows 
 
 ```
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
-pyinstaller --onefile --add-data "extensions.json;." --add-binary "simpleweblib;." SimpleWeb.py           
+pyinstaller --onefile --add-data "extensions.json;." --add-data "info.json;." --add-binary "simpleweblib;." SimpleWeb.py
 ```
 
 you have now built simpleweb, look inside the folder simpleweb.py is, and look for a new folder called 'Dist'
