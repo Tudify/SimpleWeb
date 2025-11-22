@@ -1,5 +1,5 @@
-import sys, os, platform, urllib.parse, json, psutil, subprocess
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QMessageBox,QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTabWidget, QFileDialog, QShortcut,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QTextEdit, QDockWidget)
+import sys, os, platform, urllib.parse, json, psutil, subprocess, updater
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QMessageBox,QVBoxLayout, QHBoxLayout, QLineEdit, QTabWidget, QFileDialog, QShortcut,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QTextEdit, QDockWidget)
 from PyQt5.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile, QWebEnginePage
@@ -465,18 +465,14 @@ class BrowserWindow(QMainWindow):
     def create_quick_research_sidebar(self):
         self.quick_research_sidebar = QDockWidget(self)
         self.quick_research_sidebar.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
-
         self.quick_research_browser = QWebEngineView()
         self.quick_research_browser.setUrl(QUrl("https://tudify.co.uk/Luna-AI/research/"))
         self.quick_research_browser.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         self.quick_research_browser.settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
         self.http_user_agent = ChromiumUserAgent
-
         self.quick_research_sidebar.setWidget(self.quick_research_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.quick_research_sidebar)
         self.quick_research_sidebar.hide()
-
-        # Custom title bar
         title_widget = QWidget()
         layout = QHBoxLayout(title_widget)
         layout.setContentsMargins(5, 0, 5, 0)
@@ -508,12 +504,9 @@ class BrowserWindow(QMainWindow):
         self.ai_browser.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         self.ai_browser.settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
         self.http_user_agent = ChromiumUserAgent
-
         self.ai_sidebar.setWidget(self.ai_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.ai_sidebar)
         self.ai_sidebar.hide()
-
-        # Custom title bar
         title_widget = QWidget()
         layout = QHBoxLayout(title_widget)
         layout.setContentsMargins(5, 0, 5, 0)
@@ -941,17 +934,17 @@ ChromiumUserAgent = (
     f"Chromium/141.0 Safari/605.1.15"
 )
 
-
 class MainApp(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
         self.setStyle("Fusion")
-    def create_main_window(self, splash):
+    def create_main_window(self):
         main_window = BrowserWindow()
         main_window.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = BrowserWindow()
+    updater.check_for_update()
     window.show()
     sys.exit(app.exec_())
