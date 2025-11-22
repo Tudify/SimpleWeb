@@ -283,7 +283,8 @@ class DebugWindow(QDialog):
 class BrowserWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Tudify SimpleWeb")
+        infofile = getinfo()
+        self.setWindowTitle(infofile.get("name", "SimpleWebEngine Window"))
         self.setGeometry(300, 100, 1000, 600)
         print(f"SimpleWebAPI v{APIver}")
         self.refresh_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
@@ -886,9 +887,25 @@ elif AI_Service == "Gemini":
 cpuname = platform.processor()
 os_name = platform.system()
 arch = platform.architecture()
-builtonIDE = "VS code 1.105.1" # SimpleCode Internal 1.0 hits harder
-EngineName = "SWE-Multiplatform"
-EngineVer = "3.0.5"
+
+@staticmethod
+def getinfo():
+    base_dir = Path(__file__).resolve().parent
+    info_path = base_dir / "info.json"
+    if info_path.exists():
+        try:
+            with info_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Failed to read {info_path.name}: {e}")
+            return {}
+    else:
+        print("info.json not found!")
+        return {}
+
+builtonIDE = getinfo().get("ide", "VS code 1.105.1") # SimpleCode Internal 1.0 hits harder
+EngineName = getinfo().get("engine", "Unknown")
+EngineVer = getinfo().get("version", "Unknown")
 APIver = "1.0.2" 
 mem = psutil.virtual_memory().total / (1024 ** 3)
 
