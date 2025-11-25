@@ -1,6 +1,9 @@
+"""SimpleWeb Updater Module, Checks for updates and prompts user to download if available."""
+import PyQt6.QtCore
+import PyQt6.QtGui
 import json, sys, webbrowser
 from pathlib import Path
-from PyQt5.QtWidgets import QMessageBox, QApplication, QPushButton
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
 from urllib.request import urlopen
 
 UPDATE_URL = "http://tudify.co.uk/update/simpleweb.txt"
@@ -46,4 +49,5 @@ def check_for_update():
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    check_for_update()
     sys.exit(0)

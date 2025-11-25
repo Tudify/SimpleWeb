@@ -2,5 +2,7 @@
   "AI sidebar [beta] (ctrl + I)": false,
   "Quick Notes (ctrl + N)": false,
   "Quick Research (ctrl + O)": false,
-  "Chromium Spoofer [alpha]": false
+  "Chromium Spoofer [alpha]": false,
+  "Music sidebar (ctrl + M)": false,
+  "TrackMeNot": false
 }

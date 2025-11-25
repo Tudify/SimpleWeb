@@ -2,9 +2,10 @@
 #include <fstream>
 #include <string>
 
+// worlds least hardcoded JSON fetcher
+
 using namespace std;
 
-// Extract a string value from simple JSON using only std::string
 string getValueFromJson(const string& json, const string& key) {
     string pattern = "\"" + key + "\"";
     size_t keyPos = json.find(pattern);
@@ -23,7 +24,6 @@ string getValueFromJson(const string& json, const string& key) {
 }
 
 int main() {
-    // Read info.json into a string
     ifstream file("info.json");
     if (!file.is_open()) {
         cout << "Could not open info.json\n";
@@ -33,19 +33,16 @@ int main() {
     string json((istreambuf_iterator<char>(file)),
                 istreambuf_iterator<char>());
 
-    // Extract all fields
     string version = getValueFromJson(json, "version");
     string name    = getValueFromJson(json, "name");
     string ide     = getValueFromJson(json, "ide");
     string engine  = getValueFromJson(json, "engine");
 
-    // Apply defaults if missing
     if (version.empty()) version = "Unknown";
     if (name.empty())    name    = "Unknown App";
     if (ide.empty())     ide     = "Unknown IDE";
     if (engine.empty())  engine  = "Unknown Engine";
 
-    // Output
     cout << name << " " << version << " initialising..." << endl;
     cout << "Engine: " << engine << endl;
     cout << "Development IDE: " << ide << endl;
