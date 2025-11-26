@@ -1,6 +1,6 @@
 {
-    "version": "3.1.0",
+    "version": "3.1.1",
     "name": "Tudify SimpleWeb",
-    "ide": "SimpleCode 0.5.2a",
+    "ide": "SimpleCode 0.5.5b",
     "engine": "SWE-Multiplatform"
 }

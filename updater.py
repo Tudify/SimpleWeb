@@ -1,12 +1,12 @@
 """SimpleWeb Updater Module, Checks for updates and prompts user to download if available."""
 import PyQt6.QtCore
 import PyQt6.QtGui
-import json, sys, webbrowser
+import json, sys, webbrowser, ssl
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
 from urllib.request import urlopen
 
-UPDATE_URL = "http://tudify.co.uk/update/simpleweb.txt"
+UPDATE_URL = "https://tudify.co.uk/update/simpleweb.txt"
 RELEASES_URL = "https://github.com/tudify/simpleweb/releases"
 
 def load_local_version_numeric():
@@ -23,7 +23,8 @@ def load_local_version_numeric():
 def check_for_update():
     local_version = load_local_version_numeric()
     try:
-        with urlopen(UPDATE_URL) as response:
+        ctx = ssl._create_unverified_context()
+        with urlopen(UPDATE_URL, context=ctx) as response:
             remote_text = response.read().decode().strip()
             remote_version = int(remote_text.replace(".", ""))
     except Exception as e:

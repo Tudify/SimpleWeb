@@ -309,18 +309,6 @@ class SimpleWeb:
             ai_url = music_services.get(self.music_service, "https://open.spotify.com/")
             self.music_browser.setUrl(QUrl(ai_url))
 
-
-
-
-# Keep backward compatibility
-AISideBar = SimpleWeb.AIsidebar
-QuickNotes = SimpleWeb.QuickNotes
-QuickResearch = SimpleWeb.QuickResearch
-ChromiumSpoofer = SimpleWeb.ChromiumSpoofer
-
-
-
-@staticmethod
 def getinfo():
     base_dir = Path(__file__).resolve().parent
     info_path = base_dir / "info.json"

@@ -1,5 +1,4 @@
 import sys, os, platform, urllib.parse, json, psutil, subprocess, updater, inspect, simplewebex
-import PyQt6.QtCore, PyQt6.QtGui, PyQt6.QtWidgets
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
 from PyQt6.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -434,10 +433,8 @@ class BrowserWindow(QMainWindow):
                 continue
             print(f"✓ Valid shortcut found: {shortcut_value}")
 
-            # Try to instantiate with appropriate parameters
             instance = None
             try:
-                # Special handling for different extension types
                 if name == "AIsidebar":
                     instance = cls(self, ai_service=self.AI_service)
                     print(f"  ✓ Instantiated {name} with AI service: {self.AI_service}")
@@ -445,7 +442,6 @@ class BrowserWindow(QMainWindow):
                     instance = cls(self, theme=self.theme)
                     print(f"  ✓ Instantiated {name} with theme: {self.theme}")
                 else:
-                    # Default: just pass parent
                     instance = cls(self)
                     print(f"  ✓ Instantiated {name} with parent")
             except TypeError as e:
@@ -481,7 +477,6 @@ class BrowserWindow(QMainWindow):
 
     def TrackMeNot_enabled(self):
         settings = QSettings("Tudify", "SimpleWeb-Extensions")
-        # keep the same key you used when building the ExtensionsWindow
         return settings.value("TrackMeNot", False, type=bool)
 
     def load_settings(self):
@@ -578,7 +573,6 @@ class BrowserWindow(QMainWindow):
             url_to_load = text
 
         elif not text.startswith(('http://', 'https://')):
-            # Use selected search engine
             
             search_eng = self.search_engine.lower()
             if '.' not in text:  # assume search
@@ -594,16 +588,12 @@ class BrowserWindow(QMainWindow):
         else:
             url_to_load = text  # already has https/http
 
-        # No need to pre-check URL reachability; let the browser handle errors
-
-        # Load the URL in the current tab
         current_browser = self.tabs.currentWidget()
         if current_browser:
             current_browser.setUrl(QUrl(url_to_load))
         else:
             self.add_new_tab(QUrl(url_to_load))
 
-        # Clear and hide the popup
         self.url_popup.clear()
         self.url_popup.hide()
 
@@ -764,7 +754,6 @@ class BrowserWindow(QMainWindow):
             settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadIconsForPage, False)
             settings.setAttribute(QWebEngineSettings.WebAttribute.DnsPrefetchEnabled, False)
             settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
-            settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, False)
             settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, False)
         else:
             print("TrackMeNot is disabled: Applying standard privacy settings.")
@@ -908,10 +897,13 @@ mem = psutil.virtual_memory().total / (1024 ** 3)
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
     macver = platform.mac_ver()[0].replace('.', '_')
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
-    os_namefinal = "Macintosh; Intel Mac OS X " + macver
+    if cpuname == "arm":
+        os_namefinal = "Macintosh; Apple Silicon Mac OS X " + macver
+    else:
+         os_namefinal = "Macintosh; Intel Mac OS X " + macver
     os_namereport = "macOS"
 if os_name == "Linux":
-    os_namefinal = "X11; Linux " + arch
+    os_namefinal = "X11; Linux " + arch[0]
     os_namereport = "Linux"
 if os_name.startswith("Windows"):
     os_namefinal = "Windows NT 10.0; Win64; x64"
