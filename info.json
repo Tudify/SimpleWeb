@@ -1,6 +1,7 @@
 {
-    "version": "3.1.1",
+    "version": "4.0.0",
     "name": "Tudify SimpleWeb",
-    "ide": "SimpleCode 0.5.5b",
-    "engine": "SWE-Multiplatform"
+    "ide": "SimpleCode 0.7.92b",
+    "engine": "SWE-Multiplatform",
+    "font": "Hack"
 }

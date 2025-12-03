@@ -1,9 +1,9 @@
-import sys, os, platform, urllib.parse, json, psutil, subprocess, updater, inspect, simplewebex
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
+import sys, os, platform, urllib.parse, json, psutil, subprocess, updater, inspect, simplewebex, darkdetect
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QMenuBar,QMenu, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
 from PyQt6.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QAction, QShortcut
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile, QWebEnginePage
+from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest, QWebEngineFullScreenRequest, QWebEnginePermission, QWebEngineFileSystemAccessRequest
 from PyQt6.QtWebChannel import QWebChannel
 from pathlib import Path
 from simplewebex import SimpleWeb
@@ -12,11 +12,10 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 exe_path = os.path.join(script_dir, "simpleweblib")
 result = subprocess.run([exe_path], capture_output=True, text=True)
 print(result.stdout)
-
+#MARK: GetWebPage
 class getwebpage(QWebEnginePage):
     """Load a URL and return the rendered HTML source code."""
     def __init__(self):
-        # Only create one QApplication instance globally
         self.app = QApplication.instance() or QApplication(sys.argv)
         super().__init__()
 
@@ -29,8 +28,7 @@ class getwebpage(QWebEnginePage):
 
         self.load(QUrl(url))
         print("Loading URL:", url)
-        self._loop.exec_()  # Wait until load finishes
-
+        self._loop.exec_()
         return self.html
 
     def _on_load_finished(self, ok: bool):
@@ -38,27 +36,18 @@ class getwebpage(QWebEnginePage):
             self.html = ""
             self._loop.quit()
             return
-
-        # Retrieve the rendered HTML
         self.toHtml(self._store_html)
-
     def _store_html(self, html: str):
         self.html = html
         self._loop.quit()
+
+#MARK: ExtensionsWindow
 
 class ExtensionsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Extensions - SimpleWeb")
         self.setGeometry(100, 100, 400, 300)
-        self.setStyleSheet("""
-            QLabel#heading {
-                font-size: 22px;
-                font-weight: bold;
-                margin-bottom: 7px;
-            }
-            *{font-family: hack, consolas, monospace;}
-            """)
         layout = QVBoxLayout()
         self.heading_label = QLabel("Extensions")
         self.heading_label.setObjectName("heading")
@@ -74,9 +63,7 @@ class ExtensionsWindow(QDialog):
         layout.addWidget(button_box)
         self.setLayout(layout)
 
-
     def load_extensions(self, layout):
-        # Path to file in same directory as this script
         base_dir = Path(__file__).resolve().parent
         extensions_file = base_dir / "extensions.json"
         if extensions_file.exists():
@@ -85,13 +72,16 @@ class ExtensionsWindow(QDialog):
                     extensions = json.load(f)
             except Exception as e:
                 print(f"Failed to read {extensions_file.name}: {e}")
-                extensions = {
-                    "Error": True,
-                }
+                msg = QMessageBox()
+                msg.setText("Fatal Error\n\nSimpleWeb could not read from its internal files. \n extensions.json not readable (3)")
+                msg.exec()
+                raise TypeError(f"simplewebex is malformed or corrupted. {e}")
         else:
-            print("error")
+            msg = QMessageBox()
+            msg.setText("Fatal Error\n\nSimpleWeb could not read from its internal files. \n extensions.json not found (0)")
+            msg.exec()
+            raise TypeError(f"simplewebex is missing. {e}")
         extop = QSettings("Tudify", "SimpleWeb-Extensions")
-
         for name, default_state in extensions.items():
             state = extop.value(name, default_state, type=bool)
             checkbox = QCheckBox(name)
@@ -103,13 +93,58 @@ class ExtensionsWindow(QDialog):
         extop = QSettings("Tudify", "SimpleWeb-Extensions")
         for name, checkbox in self.extension_checkboxes.items():
             extop.setValue(name, checkbox.isChecked())
-        # If parent exists and has an apply_chromium_spoofer method, call it so the UA is applied immediately
         if self.parent() is not None and hasattr(self.parent(), "apply_chromium_spoofer"):
             try:
                 self.parent().apply_chromium_spoofer()
             except Exception as e:
-                print("Failed to apply chromium spoofer from ExtensionsWindow:", e)
+                msg = QMessageBox()
+                msg.setText(f"Fatal Error\n\nCould not save settings to simpleweb-extensions \n {e} (2)")
+                raise TypeError(f"info.json is malformed or corrupted. {e}")
         self.accept()
+
+#MARK: SWE About Window
+
+class AboutSWE(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About SimpleWebEngine")
+        self.setGeometry(100, 100, 467, 120)
+        layout = QVBoxLayout()
+        info = getinfo()
+        versions = str(info.get("version"))
+        self.heading_label = QLabel(f"This Program Uses SimpleWebEngine {versions}")
+        layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.new_current_label = QLabel(f"An open-source project by tudify & its users. \n SimpleWebEngine is liscenced under the GPL v3 Lisence.\n Uses Qt and Chromium.")
+        layout.addWidget(self.new_current_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.setLayout(layout)
+
+#MARK: SimpleWeb About Window
+
+class About(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About SimpleWeb")
+        self.setGeometry(100, 100, 200, 100)
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.CustomizeWindowHint |
+            Qt.WindowType.WindowTitleHint |
+            Qt.WindowType.WindowCloseButtonHint
+        )
+        layout = QVBoxLayout()
+        info = getinfo()
+        versions = str(info.get("version"))
+        print(versions)
+        self.heading_label = QLabel("SimpleWeb")
+        self.heading_label.setObjectName("heading")
+        layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.new_current_label = QLabel(f"An open-source project by tudify. \n")
+        layout.addWidget(self.new_current_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.verlabel = QLabel(f"version: {versions}")
+        layout.addWidget(self.verlabel, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.setLayout(layout)
+
+#MARK: SimpleWebAPI
 
 class SimpleWebAPI(QObject):
     def __init__(self, parent=None):
@@ -163,12 +198,24 @@ class SimpleWebAPI(QObject):
     def getUserTheme(self):
         settings = QSettings("Tudify", "SimpleWeb")
         theme = settings.value("theme", "dark")
-        return theme
+        if theme.lower() == "auto":
+            if current_theme.lower() == "dark":
+                return "dark"
+            else:
+                return "light"
+        else:
+            return theme
 
     @pyqtSlot(result=str)
     def GetUserTheme(self):
-        print("GetUserTheme is planned to be deprecated. Please migrate to getUserTheme when possible.")
         return self.getUserTheme()
+    
+    @pyqtSlot(result=str)
+    def macVersion(self):
+        if os_namereport == "macOS":
+            return macver
+        else:
+            return "null"
     
     @pyqtSlot(str)
     def print(self, text):
@@ -180,24 +227,16 @@ class SimpleWebAPI(QObject):
         if self.main_window:
             self.main_window.setWindowTitle(title)
         else:
-            # fallback: rename the last opened standalone window
             if self.windows:
                 self.windows[-1].setWindowTitle(title)
+
+#MARK: SettingsWindow
 
 class SettingsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.setGeometry(100, 100, 400, 300)
-        self.setStyleSheet("""
-            QLabel#heading {
-                font-size: 22px;
-                font-weight: bold;
-                margin-bottom: 7px;
-            }
-            *{font-family: hack, consolas, arial;}
-            """)
-        
         layout = QVBoxLayout()
         self.heading_label = QLabel("Settings")
         self.heading_label.setObjectName("heading")
@@ -211,7 +250,7 @@ class SettingsWindow(QDialog):
         self.theme_label = QLabel("Choose your theme:")
         layout.addWidget(self.theme_label)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light"])
+        self.theme_combo.addItems(["Auto", "Dark", "Light"])
         layout.addWidget(self.theme_combo)
         self.selabel = QLabel("Choose your search engine:")
         layout.addWidget(self.selabel)
@@ -261,10 +300,10 @@ class SettingsWindow(QDialog):
     def load_settings(self):
         settings = QSettings("Tudify", "SimpleWeb")
         self.new_tab_url_edit.setText(settings.value("new_tab_url", "https://tudify.co.uk/simpleweb/newtab.htm"))
-        self.theme_combo.setCurrentText(settings.value("theme", "Dark"))
+        self.theme_combo.setCurrentText(settings.value("theme", "auto"))
         self.search_engine_combo.setCurrentText(settings.value("search_engine", "Google"))
         self.AI_combo.setCurrentText(settings.value("AI_service", "Nora AI"))
-        self.AI_combo.setCurrentText(settings.value("music_service", "Spotify"))
+        self.music_combo.setCurrentText(settings.value("music_service", "Spotify"))
         default_new_tab_checked = settings.value("default_new_tab_checked", False)
         self.default_new_tab_checkbox.setChecked(default_new_tab_checked == "true")
         self.accent_colour = str(settings.value("accent_colour", "#0a6cff"))
@@ -273,7 +312,7 @@ class SettingsWindow(QDialog):
     def reset_settings(self):
         settings = QSettings("Tudify", "SimpleWeb")
         settings.setValue("new_tab_url",  "https://tudify.co.uk/simpleweb/newtab.htm")
-        settings.setValue("theme", "Dark")
+        settings.setValue("theme", "auto")
         settings.setValue("search_engine","Google")
         settings.setValue("AI_service", "Nora AI")
         settings.setValue("default_new_tab_checked", "true")
@@ -296,63 +335,108 @@ class SettingsWindow(QDialog):
         settings.setValue("music_service", self.music_combo.currentText())
         print("DEBUG: Saved accent colour:", self.accent_edit.text())        
 
+#MARK: Debug Window
+
 class DebugWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("DebugWindow")
         self.setGeometry(100, 100, 400, 300)
-        self.setStyleSheet("""
-            QLabel#heading {
-                font-size: 22px;
-                font-weight: bold;
-                margin-bottom: 7px;
-            }
-            *{font-family: hack, consolas, arial;}
-            """)
-        
+
+        self.json_path = os.path.join(os.path.dirname(__file__), "info.json")
+        self.info = self.load_json()
+        currentchromiumstate = None
+        simplewebex.SimpleWeb.ChromiumSpoofer.chromium_spoofer_enabled = currentchromiumstate
+        if currentchromiumstate is True:
+            CurrentUA = ChromiumUserAgent
+        else:
+            CurrentUA = UserAgent
         layout = QVBoxLayout()
-        self.heading_label = QLabel("Debug info")
+        self.heading_label = QLabel("Debug Flags")
         self.heading_label.setObjectName("heading")
         layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.uatitle = QLabel("UserAgent")
-        layout.addWidget(self.uatitle)
-        self.uadisplay = QLabel(UserAgent)
-        layout.addWidget(self.uadisplay)
         self.ostitle = QLabel("Versioning")
         layout.addWidget(self.ostitle)
-        self.osdisplay = QLabel(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} RAM on {cpuname}, built with {builtonIDE}")
+        self.osdisplay = QLabel(f"SimpleWeb {EngineVer} on {os_namereport} ({cpunamefinal})")
         layout.addWidget(self.osdisplay)
-        self.theme_combo = QComboBox()
+        self.cbn = QLabel("Set a Custom Browser Name:")
+        layout.addWidget(self.cbn)
+        self.CustomBrowserName = QLineEdit()
+        self.CustomBrowserName.setText(self.info.get("name", ""))
+        layout.addWidget(self.CustomBrowserName)
+        self.ua_label = QLabel("Edit UserAgent:")
+        layout.addWidget(self.ua_label)
+        self.ua_edit = QLineEdit()
+        self.ua_edit.setText(CurrentUA)
+        layout.addWidget(self.ua_edit)
+        self.font_label = QLabel("Set Custom Font Name:")
+        layout.addWidget(self.font_label)
+        self.font_edit = QLineEdit()
+        self.font_edit.setText(self.info.get("font", "Hack"))
+        layout.addWidget(self.font_edit)
         layout.addSpacing(20)
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
-        button_box.accepted.connect(self.accept)
+        button_box.accepted.connect(self.save_and_close)
         layout.addWidget(button_box)
         self.setLayout(layout)
+    def load_json(self):
+        if not os.path.exists(self.json_path):
+            raise FileNotFoundError("info.json must be in the same directory!")
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            raise FileNotFoundError("info.json must be in the same directory!")
+    def save_json(self):
+        with open(self.json_path, "w", encoding="utf-8") as f:
+            json.dump(self.info, f, indent=4)
+    def save_and_close(self):
+        global UserAgent
+        self.info["name"] = self.CustomBrowserName.text().strip()
+        self.info["font"] = self.font_edit.text().strip()  # save the font
+        UserAgent = self.ua_edit.text().strip()
+        self.save_json()
+        self.accept()
+
+#MARK: InitialWelcome
 
 class InitialWelcome(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Welcome to SimpleWeb!")
         self.setGeometry(100, 100, 400, 300)
-        self.setStyleSheet("""
-            QLabel#heading {
-                font-size: 22px;
-                font-weight: bold;
-                margin-bottom: 7px;
-            }
-            *{font-family: hack, consolas, arial;}
-            """)
-        
+
         layout = QVBoxLayout()
         self.heading_label = QLabel("Hello. It's good to see you.")
         self.heading_label.setObjectName("heading")
-        layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
         self.swwelcme = QLabel("Welcome to SimpleWeb! Here's the basics so you can get going right away.")
+        self.swwelcme.setObjectName("welcome")
         layout.addWidget(self.swwelcme)
-        self.cntrls = QLabel("Ctrl + U is the Quick Bar. \n The Quick bar allows you to search the web, or even just go to a website. \n Ctrl + , is settings. \n you can customise almost anything about simpleweb there. \n if you open the Quick Bar and type extensions:// you can get some more useful features.")
+
+        self.cntrls = QLabel("""
+        <b>Keyboard Shortcuts:</b><br><br>
+        • <b>Ctrl + U</b> — Quick Bar<br>
+        • <b>Ctrl + ,</b> — Settings<br>
+        • <b>extensions:// (type inside of Quick Bar)</b> — Extensions Panel<br>
+        • <b>Ctrl + Z</b> — Back<br>
+        • <b>Ctrl + R</b> — Refresh
+        """)
+
         layout.addWidget(self.cntrls)
+
         layout.addSpacing(20)
+
+        self.settings_btn = QPushButton("Open Settings")
+        self.settings_btn.clicked.connect(self.openSettings)
+        layout.addWidget(self.settings_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+
         self.setLayout(layout)
+    
+    def openSettings(self):
+        BrowserWindow.settings_window = SettingsWindow(self)
+        BrowserWindow.settings_window.show()
 
     def closeEvent(self, event):
         settings = QSettings("Tudify", "SimpleWeb")
@@ -360,13 +444,16 @@ class InitialWelcome(QDialog):
         settings.sync()
         super().closeEvent(event)
 
+#MARK: Main - BrowserWindow
+
 class BrowserWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.load_settings()
         infofile = getinfo()
+        self.checkwintitle()
         self.setWindowTitle(infofile.get("name", "SimpleWebEngine Window"))
-        self.setGeometry(300, 100, 1000, 600)
+        self.setGeometry(225, 150, 1270, 760)
         print(f"SimpleWebAPI v{APIver}")
         self.refresh_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
         self.refresh_shortcut.activated.connect(self.refresh_page)
@@ -376,11 +463,16 @@ class BrowserWindow(QMainWindow):
         self.shortcut_settings.activated.connect(self.open_settings_window)
         self.shortcut_new_tab = QShortcut(QKeySequence("Ctrl+T"), self)
         self.shortcut_new_tab.activated.connect(self.open_default_new_tab)
+        self.shortcut_toggle_tabbar = QShortcut(QKeySequence("F11"), self)
+        self.shortcut_toggle_tabbar.activated.connect(self.toggle_tab_bar)
         self.shortcut_url_popup = QShortcut(QKeySequence("Ctrl+U"), self)
         self.shortcut_url_popup.activated.connect(self.toggle_url_popup)
+        self.shortcut_find_popup = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.shortcut_find_popup.activated.connect(self.toggle_find_popup)
         self.shortcut_goback = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.shortcut_goback.activated.connect(self.go_back)
         self.set_stylesheet(self.theme)
+        menubar(self)
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.central_layout = QVBoxLayout(self.central_widget)
@@ -390,12 +482,20 @@ class BrowserWindow(QMainWindow):
         self.url_popup.hide()
         self.url_popup.returnPressed.connect(self.handle_quick_url)
         self.url_popup.installEventFilter(self) 
+        self.find_popup = QLineEdit(self)
+        self.find_popup.setPlaceholderText("Search this Webpage...")
+        self.find_popup.hide()
+        self.find_popup.installEventFilter(self) 
         self.url_popup_width = 400
         self.url_popup_height = 40
+        self.find_popup_width = 400
+        self.find_popup_height = 40
         self.update_url_popup_position()
+        self.update_find_pos()
         self.onboardingcheck()
         self.extension_instances = {}
         self.auto_register_shortcuts(simplewebex.SimpleWeb)
+        self.debugwin = DebugWindow(self)
 
         if os_name in ["Windows XP", "Windows Vista", "Windows 7", "Windows 8", "Windows 8.1"]:
             msg = QMessageBox()
@@ -408,7 +508,13 @@ class BrowserWindow(QMainWindow):
                 "by using this software on an insecure OS."
             )
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg.exec_()
+            msg.exec()
+    
+    def checkwintitle(self):
+        if getinfo().get("name") == "null":
+            winnullmsg = QMessageBox()
+            winnullmsg.setText("Fatal Error \n Window title cannot be null. \n null_err (1)")
+            winnullmsg.exec()
 
     def initial_hello(self):
         self.initialsetup = InitialWelcome(self)
@@ -418,62 +524,74 @@ class BrowserWindow(QMainWindow):
         if self.initial_launch == "True":
             self.initial_hello()
 
+    def findonpage(self, browser: QWebEngineView, text: str):
+        current_browser = self.tabs.currentWidget()
+        if not text:
+            current_browser.page().findText("", QWebEnginePage.FindFlag(0))
+            return
 
-    def auto_register_shortcuts(self, module):
-        print("\n=== Starting Auto-Registration ===")
-        
+        current_browser.page().findText(text, QWebEnginePage.FindFlag(0),
+            lambda result: print(f"Found {result.numberOfMatches()} matches, active match {result.activeMatch()}"))
+
+    def toggle_find_popup(self):
+        if self.find_popup.isVisible():
+            self.find_popup.clear()
+            self.find_popup.hide()
+        else:
+            self.find_popup.show()
+            self.find_popup.raise_()
+            self.find_popup.setFocus()
+
+    def toggle_tab_bar(self):
+        tabbar = self.tabs.tabBar()
+        if tabbar.isVisible():
+            tabbar.hide()
+        else:
+            tabbar.show()
+
+    def auto_register_shortcuts(self, module):        
         for name, cls in inspect.getmembers(module, inspect.isclass):
             if not hasattr(cls, '__module__'):
                 continue
-            print(f"\nChecking class: {name}")
             shortcut_value = getattr(cls, "Shortcut", None)
-            print(f"Shortcut value: {shortcut_value}")
             if not shortcut_value or str(shortcut_value).lower() == "none":
-                print(f"INFO: Skipping {name}: No valid shortcut")
                 continue
-            print(f"✓ Valid shortcut found: {shortcut_value}")
-
             instance = None
             try:
                 if name == "AIsidebar":
                     instance = cls(self, ai_service=self.AI_service)
-                    print(f"  ✓ Instantiated {name} with AI service: {self.AI_service}")
                 elif name == "QuickNotes":
                     instance = cls(self, theme=self.theme)
-                    print(f"  ✓ Instantiated {name} with theme: {self.theme}")
                 else:
                     instance = cls(self)
-                    print(f"  ✓ Instantiated {name} with parent")
             except TypeError as e:
-                print(f"ERROR:  Failed to instantiate {name}: {e}")
                 continue
             if instance is None:
-                print(f"ERROR: Instance is None for {name}")
                 continue
             self.extension_instances[name] = instance
-            print(f"  ✓ Stored instance in extension_instances")
             toggle_method = None
             toggle_method_name = None
-            print(f"Locating... One Minute...")
             for attr_name in dir(instance):
                 if attr_name.startswith("toggle"):
                     attr = getattr(instance, attr_name, None)
                     if callable(attr):
                         toggle_method = attr
                         toggle_method_name = attr_name
-                        print(f"Found: {attr_name}")
                         break
             if not toggle_method:
-                print(f"ERROR: No toggle method found for {name}")
                 continue
-            print(f"  ✓ Using toggle method: {toggle_method_name}")
             try:
                 shortcut = QShortcut(QKeySequence(shortcut_value), self)
                 shortcut.activated.connect(toggle_method)
-                print(f"  ✓✓✓ Successfully registered {shortcut_value} -> {name}.{toggle_method_name}")
             except Exception as e:
-                print(f"ERROR: Failed to create shortcut: {e}")
-        print("\n=== Auto-Registration Complete ===\n")
+                extmsg = QMessageBox()
+                extmsg.setWindowTitle("Non-Fatal Error")
+                extmsg.setText(
+                    "Non-Fatal Error\nSimpleWeb failed to initialise extensions."
+                    "SimpleWeb will continue."
+                    "simplewebex_not_found (4)"
+                )
+                extmsg.exec()
 
     def TrackMeNot_enabled(self):
         settings = QSettings("Tudify", "SimpleWeb-Extensions")
@@ -483,7 +601,7 @@ class BrowserWindow(QMainWindow):
         settings = QSettings("Tudify", "SimpleWeb")
         self.new_tab_url = settings.value("new_tab_url", "https://tudify.co.uk/simpleweb/newtab.htm")
         self.accent_colour = str(settings.value("accent_colour", "#0a6cff"))
-        self.theme = settings.value("theme", "dark")
+        self.theme = settings.value("theme", "auto")
         self.default_new_tab_enabled = settings.value("default_new_tab_checked", "false") == "true"
         self.search_engine = settings.value("search_engine", "Google")
         self.AI_service = settings.value("AI_service", "Nora AI")
@@ -526,8 +644,14 @@ class BrowserWindow(QMainWindow):
             if event.key() == Qt.Key.Key_Escape:
                 self.url_popup.clear()
                 self.url_popup.hide()
-                return True
+                return True 
+        elif source is self.find_popup and event.type() == QEvent.Type.KeyPress:
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self.findonpage(self.tabs.currentWidget(), self.find_popup.text())
+                return True 
+            return False
         return super().eventFilter(source, event)
+
 
     def handle_quick_url(self):
         text = self.url_popup.text().strip()
@@ -600,6 +724,12 @@ class BrowserWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.update_url_popup_position()
+        self.update_find_pos()
+
+    def update_find_pos(self):
+        x = (self.width() - self.find_popup_width) // 2
+        y = 20  # distance from top
+        self.find_popup.setGeometry(x, y, self.find_popup_width, self.find_popup_height)
 
     def update_url_popup_position(self):
         x = (self.width() - self.url_popup_width) // 2
@@ -609,10 +739,58 @@ class BrowserWindow(QMainWindow):
     def set_stylesheet(self, theme):
         accent = self.accent_colour
         print(f"DEBUG: Applying {theme} Theme with accent: {accent}")
-
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         style_dark = f"""
-            *{{font-family: hack, arial;}}
+            *{{font-family:{font_name}, hack, arial;}}
             QMainWindow {{
+                background-color: #202326;
+                color: #ffffff;
+                border: none;
+            }}
+            QLabel#heading {{
+                font-size: 22px;
+                font-weight: bold;
+                margin-bottom: 7px;
+            }}
+            QLabel#welcome {{
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 7px;
+            }}
+            QWebEngineView {{
+                border: none;
+                outline: none;
+                background: transparent;
+            }}
+            QMenu {{
+                background-color: #2b2b2b;
+                color: white;
+                border-radius: 8px;
+                border: 1px solid #444;
+                padding: 6px;
+            }}
+            QMenu::item {{
+                padding: 6px 20px;
+                background-color: transparent;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: #3c3c3c;
+                border-radius: 4px;
+            }}
+            QComboBox{{
+                background-color: #292c30;
+                color: #ffffff;
+                padding: 10px 16px;
+                border-radius: 6px;
+                border: 1px solid #414346;
+                padding: 10px 16px 10px 16px;
+            }}
+            QComboBox:focus {{
+                background-color: #292c30;
+                border: 1px solid {accent};
+            }}
+            QDialog{{
                 background-color: #202326;
                 color: #ffffff;
             }}
@@ -625,7 +803,7 @@ class BrowserWindow(QMainWindow):
             }}
             QPushButton:hover {{
                 background-color: #292c30;
-                border: 1px solid {accent};
+                border: 1px solid #414346;
             }}
             QLineEdit {{
                 background-color: #292c30;
@@ -652,10 +830,44 @@ class BrowserWindow(QMainWindow):
         """
 
         style_light = f"""
-            *{{font-family: hack;}}
+            *{{font-family:{font_name}, hack, arial;}}
             QMainWindow {{
                 background-color: #f5f5f5;
-                color: #000000;
+            }}
+            QDialog {{
+                background-color: #f5f5f5;
+                text-color: #000000;
+            }}
+            QWebEngineView {{
+                border: none;
+                outline: none;
+                background: transparent;
+            }}
+            QLabel#heading {{
+                font-size: 22px;
+                font-weight: bold;
+                margin-bottom: 7px;
+            }}
+            QLabel#welcome {{
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 7px;
+            }}
+            QMenu {{
+                background-color: #e3e3e3;
+                color: black;
+                border-radius: 8px;
+                border: 1px solid #ccc;
+                padding: 6px;
+            }}
+            QMenu::item {{
+                padding: 6px 20px;
+                background-color: transparent;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: #ffffff;
+                border-radius: 4px;
             }}
             QPushButton {{
                 background-color: #e0e0e0;
@@ -691,24 +903,28 @@ class BrowserWindow(QMainWindow):
 
         if theme.lower() == "dark":
             self.setStyleSheet(style_dark)
-        else:
+        elif theme.lower() == "light":
             self.setStyleSheet(style_light)
+        elif theme.lower() == "auto":
+            if current_theme.lower() == "dark":
+                self.setStyleSheet(style_dark)
+            else:
+                self.setStyleSheet(style_light)
+        else:
+            thmemsg = QMessageBox()
+            thmemsg.setWindowTitle("Settings Error")
+            thmemsg.setText(
+                "Settings Error\nSimpleWeb failed to initialise due"
+                "to an unknown setting."
+                "themenotfound error (5)"
+            )
+            thmemsg.exec()
+            sys.exit()
 
-        if hasattr(self, 'tabs') and hasattr(self, 'new_tab_button'):
-            self.new_tab_button.setFixedSize(50, 50)
-            self.new_tab_button.setStyleSheet(f"""
-                QPushButton {{
-                    border-radius: 6px;
-                    font-weight: bold;
-                    font-size: 16px;
-                    border: 1px solid {accent};
-                }}
-                QPushButton:hover {{
-                    background-color: {accent};
-                    color: white;
-                }}
-            """)
-
+    def docs(self, url):
+        current_browser = self.tabs.currentWidget()
+        if current_browser is not None:
+            current_browser.setUrl(QUrl(url))
 
     def create_tab_widget(self):
         self.tabs = QTabWidget()
@@ -717,20 +933,54 @@ class BrowserWindow(QMainWindow):
         tabbar = self.tabs.tabBar()
         tabbar.setExpanding(False)
         tabbar.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0; } QTabBar::tab { margin-right: 2px; }")
+        tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0;} QTabBar::tab { margin-right: 5px; }")
         self.central_layout.addWidget(self.tabs)
         self.add_new_tab(QUrl('https://tudify.co.uk/simpleweb/newtab.htm'))
 
+    def sw_context_menu(self, pos):
+        self.find_popup.hide()
+        self.url_popup.hide()
+        browser = self.sender()
+        page = browser.page()
+        menu = QMenu(self)
+        act_copy = page.action(QWebEnginePage.WebAction.Copy)
+        act_copy.setText("⧉ Copy")
+        act_cut = page.action(QWebEnginePage.WebAction.Cut)
+        act_cut.setText("✂ Cut")
+        act_paste = page.action(QWebEnginePage.WebAction.Paste)
+        act_paste.setText("| Paste")
+        menu.addAction(act_copy)
+        menu.addAction(act_paste)
+        menu.addAction(act_cut)
+        menu.addSeparator() 
+        back_action = menu.addAction("← Back")
+        find_action = menu.addAction("⌕ Find")
+        reload_action = menu.addAction("↻ Reload")
+        selected = menu.exec(browser.mapToGlobal(pos))
+        if selected == back_action:
+            self.go_back()
+        elif selected == find_action:
+            self.toggle_find_popup()
+        elif selected == reload_action:
+            self.refresh_page()
+
+    def handle_fs(self, request: QWebEngineFileSystemAccessRequest):
+        request.deny()
+
     def add_new_tab(self, qurl):
         if qurl is None or qurl.isEmpty():
-            # Use default new tab URL if the provided URL is empty
             if self.default_new_tab_enabled:
                 qurl = QUrl(self.new_tab_url)
             else:
                 qurl = QUrl('https://tudify.co.uk/simpleweb/newtab.htm')
 
-        # Create a new instance of QWebEngineView
         browser = QWebEngineView()
+        browser.page().fullScreenRequested.connect(self.handle_fullscreen_request)
+        browser.page().certificateError.connect(self.handle_cert_error)
+        browser.page().permissionRequested.connect(self.handle_permission)
+        browser.page().fileSystemAccessRequested.connect(self.handle_fs)
+        browser.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        browser.customContextMenuRequested.connect(self.sw_context_menu)
         settings = browser.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
         settings.setFontFamily(QWebEngineSettings.FontFamily.StandardFont, "Hack")
@@ -744,6 +994,7 @@ class BrowserWindow(QMainWindow):
         if self.TrackMeNot_enabled():
             print("TrackMeNot is enabled: Applying strict privacy settings.")
             profile = QWebEngineProfile(parent=None)
+            profile.downloadRequested.connect(self.on_downloadRequested)
             profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
             profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
             settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, False)
@@ -758,6 +1009,7 @@ class BrowserWindow(QMainWindow):
         else:
             print("TrackMeNot is disabled: Applying standard privacy settings.")
             profile = QWebEngineProfile.defaultProfile()
+            profile.downloadRequested.connect(self.on_downloadRequested)
             profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
             profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
             settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
@@ -790,6 +1042,31 @@ class BrowserWindow(QMainWindow):
         else:
             self.tabs.setTabText(index, "no title")
 
+    def handle_permission(self, permission):
+        if QWebEnginePermission.PermissionType in (
+            QWebEnginePermission.PermissionType.MediaAudioCapture,
+            QWebEnginePermission.PermissionType.MediaVideoCapture,
+            QWebEnginePermission.PermissionType.MediaAudioVideoCapture,
+            QWebEnginePermission.PermissionType.Geolocation,
+            QWebEnginePermission.PermissionType.DesktopAudioVideoCapture,
+            QWebEnginePermission.PermissionType.DesktopVideoCapture
+        ):
+            reply.exec()
+        else:
+            permission.deny()
+
+        reply = QMessageBox.question(
+            self,
+                "Permission Request",
+                f"The site is requesting advanced permissions\n These May include: \n - Location \n - Mic & Camera Access \n -Screen Sharing Access \n Do you want to allow it for this tab?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            permission.grant()
+        else:
+            permission.deny()
+
     def close_current_tab(self):
         current_index = self.tabs.currentIndex()
         if (current_index != -1):
@@ -805,7 +1082,7 @@ class BrowserWindow(QMainWindow):
         ai_services = {
             "ChatGPT": "https://chat.openai.com/",
             "Amanda AI 2": "https://poe.com/Amanda-AI/",
-            "Nora AI": "https://tudify.co.uk/Luna-AI/", # this URL would be changed if it didnt break old versions lol
+            "Nora AI": "https://tudify.co.uk/Luna-AI/",
             "Claude": "https://claude.ai/",
             "Gemini": "https://gemini.google.com/"
         }
@@ -831,16 +1108,19 @@ class BrowserWindow(QMainWindow):
         settings = QSettings("Tudify", "SimpleWeb")
         settings.setValue("initialsetup", "False")
 
-    def handle_download(self, download_item):
-        url = download_item.url().toString()
-        file_name = os.path.basename(url)
-        base_name, file_extension = os.path.splitext(file_name)
-        default_file_name = base_name + file_extension
-        selected_filter = f"{file_extension[1:].upper()} Files (*{file_extension})"
-        download_path, _ = QFileDialog.getSaveFileName(self, "Save File", default_file_name, selected_filter)  
-        if download_path:
-            download_item.setPath(download_path)
-            download_item.accept()
+    def on_downloadRequested(self, download: QWebEngineDownloadRequest):
+        suggested = download.suggestedFileName() or download.downloadFileName()
+        default_name = suggested or "download.zip"
+        path, _ = QFileDialog.getSaveFileName(self, "Save File", default_name,
+                                             "All Files (*)")
+        if not path:
+            download.cancel()
+            return
+        directory = os.path.dirname(path)
+        filename = os.path.basename(path)
+        download.setDownloadDirectory(directory)
+        download.setDownloadFileName(filename)
+        download.accept()
 
     def go_back(self):
         current_browser = self.tabs.currentWidget()
@@ -856,14 +1136,24 @@ class BrowserWindow(QMainWindow):
         clipboard = QApplication.clipboard()
         clipboard.setText(result)
 
-    def handle_fullscreen_request(self, request):
-        request.accept()
-        if request.toggleOn():
-            self.showFullScreen()
+    def handle_cert_error(self, error):
+        current_browser = self.tabs.currentWidget()
+        if current_browser:
+            current_browser.setUrl(QUrl("https://tudify.co.uk/simpleweb/cert.htm"))
         else:
-            self.showNormal()
+            pass
 
-Search_engine = "Google"  # Default search engine
+    def handle_fullscreen_request(self, request: QWebEngineFullScreenRequest):
+        if request.toggleOn():
+            self.toggle_tab_bar()
+            self.showFullScreen()
+            request.accept()
+        else:
+            self.toggle_tab_bar()
+            self.showNormal()
+            request.accept()
+
+Search_engine = "Google"
 if Search_engine == "Google":
     Search_URL = "https://www.google.com/search?q="
 elif Search_engine == "DuckDuckGo":
@@ -875,6 +1165,53 @@ cpuname = platform.processor()
 os_name = platform.system()
 arch = platform.architecture()
 
+def menubar(parent: BrowserWindow):
+    if os_namereport == "macOS":
+        menu_bar = QMenuBar(parent)
+        app_menu = menu_bar.addMenu("SimpleWeb")
+        about_action = QAction("About SimpleWeb", parent)
+        about_action.triggered.connect(lambda: About(parent).exec())
+        about_qtaction = QAction("About Qt", parent)
+        about_qtaction.triggered.connect(lambda: app.aboutQt())
+        quit_action = QAction("Quit SimpleWeb", parent)
+        quit_action.triggered.connect(parent.close)
+        Settings_action = QAction("Settings", parent)
+        Settings_action.setShortcut("Ctrl+,")
+        Settings_action.triggered.connect(parent.open_settings_window) 
+        app_menu.addAction(Settings_action)
+        app_menu.addAction(about_action)
+        app_menu.addAction(about_qtaction)
+        app_menu.addAction(quit_action)
+
+        file_menu = menu_bar.addMenu("Tabs")
+        new_tab_action = QAction("New Tab", parent)
+        new_tab_action.setShortcut("Ctrl+T")
+        new_tab_action.triggered.connect(parent.add_new_tab)
+        file_menu.addAction(new_tab_action)
+        close_tab_action = QAction("Close Tab", parent)
+        close_tab_action.setShortcut("Ctrl+W")
+        close_tab_action.triggered.connect(parent.close_current_tab)
+        file_menu.addAction(close_tab_action)
+
+        view_menu = menu_bar.addMenu("View")
+        tabbar_action = QAction("Toggle Tab Bar", parent)
+        tabbar_action.setShortcut("F11")
+        tabbar_action.triggered.connect(parent.toggle_tab_bar)
+        view_menu.addAction(tabbar_action)
+        Debug_action = QAction("Debug", parent)
+        Debug_action.triggered.connect(lambda: parent.debugwin.show()) 
+        view_menu.addAction(Debug_action)
+        about_SWEaction = QAction("SW Engine Info", parent)
+        about_SWEaction.triggered.connect(lambda: AboutSWE(parent).exec())
+        view_menu.addAction(about_SWEaction)
+
+        help_menu = menu_bar.addMenu("Help")
+        doc_action = QAction("View Documentation", parent)
+        doc_action.triggered.connect(lambda: parent.docs("https://github.com/Tudify/SimpleWeb/blob/main/README.md"))
+        help_menu.addAction(doc_action)
+
+        parent.setMenuBar(menu_bar)
+
 def getinfo():
     base_dir = Path(__file__).resolve().parent
     info_path = base_dir / "info.json"
@@ -883,15 +1220,33 @@ def getinfo():
             with info_path.open("r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            raise TypeError("info.json is not found or is corrupted.", e)
+            app = QApplication(sys.argv)
+            msg = QMessageBox()
+            msg.setWindowTitle("Fatal Error")
+            msg.setText(
+                "Fatal Error\n\n"
+                "SimpleWeb's internal files are damaged and cannot be used. \n"
+                "Please Reinstall SimpleWeb. (7)"
+            )
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
+            raise TypeError(f"info.json is malformed or corrupted. {e}")
     else:
-        raise FileNotFoundError("info.json not found!")
+        app = QApplication(sys.argv)
+        msg = QMessageBox()
+        msg.setWindowTitle("Fatal Error")
+        msg.setText(
+            "SimpleWeb is missing one or more critical components."
+            "info.json (6)"
+        )
+        msg.exec()
+        raise FileNotFoundError("info.json must be in the same directory!")
     
-name = getinfo().get("name", "unknown")
-builtonIDE = getinfo().get("ide", "VS code 1.105.1")
-EngineName = getinfo().get("engine", "Unknown")
-EngineVer = getinfo().get("version", "Unknown")
-APIver = "1.0.2" 
+name = getinfo().get("name", "null")
+builtonIDE = getinfo().get("ide", "null")
+EngineName = getinfo().get("engine", "null")
+EngineVer = getinfo().get("version", "null")
+APIver = "1.0.3" 
 mem = psutil.virtual_memory().total / (1024 ** 3)
 
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
@@ -913,9 +1268,10 @@ print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} 
 
 if cpuname == "arm" and os_namereport == "macOS":
     cpunamefinal = "Apple Silicon"
-else:
+elif cpuname != "arm" and os_namereport == "macOS":
     cpunamefinal = "Intel"
-
+else:
+    cpunamefinal = "x86_64"
 if os_namereport == "macOS":
     print(f"SimpleWeb on {os_namereport} ({cpunamefinal})")
 else:
@@ -931,8 +1287,19 @@ ChromiumUserAgent = (
     f"Chromium/141.0 Safari/605.1.15"
 )
 
+font_name = getinfo().get("font", "Hack")
+current_theme = darkdetect.theme()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setApplicationName("SimpleWeb")
+    app.setApplicationVersion(getinfo().get("version"))
+    app.setApplicationDisplayName("SimpleWeb")
+    app.setOrganizationName("Tudify")
+    if os_namereport == "macOS":
+        app.setStyle("Aqua")
+    else:
+        pass
     window = BrowserWindow()
     updater.check_for_update()
     window.show()
