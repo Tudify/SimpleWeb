@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function() {
 | Method | Parameters | Returns | Description | Added in API ver |
 |--------|------------|---------|-------------|------------------|
 | `getDeviceInfo()` | None | String | Returns CPU, architecture, and OS info. Example: `"Intel i5, x64, Windows"` | 1.0 |
-| `macVersion()` | None | String | Returns ` null` if not a mac, or eg. `26_2` for Tahoe 26.2 | 1.0.3 |
+| `macVersion()` | None | String | Returns `null` if not a mac, or eg. `26_2` for Tahoe 26.2 | 1.0.3 |
 | `reportAPIver()` | None | String | Returns the API version, e.g., `"1.0.1"` | 1.0 |
 | `getRamAmount()` | None | String | Returns system RAM amount, e.g., `"16 GB"` | 1.0.1 |
 | `getUserAgent()` | None | String | Returns the browser User-Agent string | 1.0 |
