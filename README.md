@@ -1,6 +1,6 @@
 <img width="50" height="50" alt="simpleweb logo" src="https://github.com/user-attachments/assets/c88ec103-c9cc-4663-89b0-6e8908121889"/> 
 
-# SimpleWeb 3 
+# SimpleWeb 4
 
 ### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
 <img width="1822" height="1118" alt="Screenshot 2025-11-11 at 18 21 17" src="https://github.com/user-attachments/assets/6b711711-b7de-46a6-92a8-6f553107edd6" />
@@ -14,6 +14,10 @@
 ⌘ + T / ctrl + T
 ### Close Tab
 ⌘ + W / ctrl + W
+### Hide Tab Bar
+```F11```
+### Find on Page
+⌘ + F / ctrl + F
 ### Refresh page
 ⌘ + R / ctrl + R
 ### Settings page
@@ -32,10 +36,10 @@ You will need ``` Python 3.11 or later ```, ``` gcc or clang ```, ```Command Pro
 run the following command:
 
 On Windows:
-``` pip install pyqt5 pyqtwebengine psutil pyinstaller ```
+``` pip install pyqt6 pyqtwebengine psutil pyinstaller ```
 
 On Linux or macOS:
-``` pip3 install pyqt5 pyqtwebengine psutil pyinstaller ```
+``` pip3 install pyqt6 pyqtwebengine psutil pyinstaller ```
 
 ### Step two:
 #### Create binary
