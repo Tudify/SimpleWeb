@@ -336,7 +336,7 @@ if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
     os_namefinal = "Macintosh; Intel Mac OS X " + macver
     os_namereport = "macOS"
 if os_name == "Linux":
-    os_namefinal = "X11; Linux " + arch
+    os_namefinal = "X11; Linux x86_64"
     os_namereport = "Linux"
 if os_name.startswith("Windows"):
     os_namefinal = "Windows NT 10.0; Win64; x64"
