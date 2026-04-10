@@ -1,9 +1,74 @@
+# Copyright (c) 2025 tudify
+# 
+# This file may be used under the terms of the GNU General Public License
+# version 3.0 as published by the Free Software Foundation and appearing in
+# the file LICENSE included in the packaging of this file.  Please review the
+# following information to ensure the GNU General Public License version 3.0
+# requirements will be met: http://www.gnu.org/copyleft/gpl.html.
+# 
+# This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
+# WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QDockWidget, QTextEdit
 from PyQt6.QtCore import Qt, QSettings, QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings
-import platform, json
+import platform, json, darkdetect
 from pathlib import Path
+
+MUSIC_SERVICE_URLS = {
+    "Spotify": "https://open.spotify.com",
+    "Apple Music": "https://music.apple.com/",
+    "Amazon Music": "https://music.amazon.com/",
+    "YouTube Music": "https://music.youtube.com/",
+    "Tidal": "https://tidal.com",
+}
+
+def _format_os_token():
+    system = platform.system()
+    if system in ("Darwin", "macOS", "Mac", "Mac OS X"):
+        macver = platform.mac_ver()[0].replace('.', '_') or "14_0"
+        cpu = (platform.processor() or "").lower()
+        cpu_type = "Apple Silicon" if "arm" in cpu or "apple" in cpu else "Intel"
+        return f"Macintosh; {cpu_type} Mac OS X {macver}"
+    if system == "Linux":
+        arch = platform.machine() or platform.architecture()[0]
+        return f"X11; Linux {arch}"
+    if system.startswith("Windows"):
+        winver = platform.win32_ver()[0]
+        win_nt = {
+            "XP": "5.1",
+            "Vista": "6.0",
+            "7": "6.1",
+            "8": "6.2",
+            "8.1": "6.3",
+            "10": "10.0",
+            "11": "10.0",
+        }.get(winver, "10.0")
+        return f"Windows NT {win_nt}; Win64; x64"
+    return system or "Unknown"
+
+def _extension_info():
+    if not hasattr(_extension_info, "_cache"):
+        _extension_info._cache = getinfo()
+    return _extension_info._cache
+
+def _default_user_agent():
+    info = _extension_info()
+    engine_name = info.get("engine", "SimpleWeb")
+    engine_ver = info.get("version", "1.0")
+    os_token = _format_os_token()
+    return (
+        f"Mozilla/5.0 ({os_token}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        f"{engine_name}/{engine_ver} Safari/605.1.15"
+    )
+
+def _default_chromium_user_agent():
+    os_token = _format_os_token()
+    return (
+        f"Mozilla/5.0 ({os_token}) AppleWebKit/537.36 (KHTML, like Gecko) "
+        f"Chrome/120.0.0.0 Safari/537.36"
+    )
 
 class SimpleWeb:
     class AIsidebar:
@@ -72,11 +137,12 @@ class SimpleWeb:
     class QuickNotes:
         Shortcut = "ctrl+N"
         
-        def __init__(self, parent, theme="light"):
+        def __init__(self, parent, theme=None):
             self.parent = parent
-            self.theme = theme
+            self.app_settings = QSettings("Tudify", "SimpleWeb")
             self.quick_notes_sidebar = None
             self.notes_editor = None
+            self.theme_pref = theme
 
         def toggle_quick_notes_sidebar(self):
             if not self.is_quick_notes_enabled():
@@ -93,7 +159,30 @@ class SimpleWeb:
         def is_quick_notes_enabled(self):
             settings = QSettings("Tudify", "SimpleWeb-Extensions")
             return settings.value("Quick Notes (ctrl + N)", False, type=bool)
-            
+        
+        def _current_theme_mode(self):
+            preference = (self.theme_pref or self.app_settings.value("theme", "auto") or "auto").lower()
+            if preference == "auto":
+                detected = darkdetect.theme()
+                return (detected or "dark").lower()
+            return preference
+
+        def _title_stylesheet(self):
+            theme_mode = self._current_theme_mode()
+            if theme_mode == "dark":
+                return """
+                    background-color: #292c30;
+                    color: #ffffff;
+                    font-weight: bold;
+                    padding: 4px;
+                """
+            return """
+                background-color: #f0f0f0;
+                color: #000000;
+                font-weight: bold;
+                padding: 4px;
+            """
+        
         def create_quick_notes_sidebar(self):
             self.quick_notes_sidebar = QDockWidget(self.parent)
             self.quick_notes_sidebar.setAllowedAreas(
@@ -114,25 +203,13 @@ class SimpleWeb:
             layout.addWidget(QLabel("Quick Notes"))
             layout.addStretch()
 
-            if self.theme.lower() == "dark":
-                title_widget.setStyleSheet("""
-                    background-color: #292c30;
-                    color: #ffffff;
-                    font-weight: bold;
-                    padding: 4px;
-                """)
-            else:
-                title_widget.setStyleSheet("""
-                    background-color: #f0f0f0;
-                    color: #000000;
-                    font-weight: bold;
-                    padding: 4px;
-                """)
+            title_widget.setStyleSheet(self._title_stylesheet())
 
             self.quick_notes_sidebar.setTitleBarWidget(title_widget)
 
         def get_quick_notes_stylesheet(self):
-            if self.theme.lower() == "dark":
+            theme_mode = self._current_theme_mode()
+            if theme_mode == "dark":
                 return """
                     QTextEdit {
                         background-color: #292c30;
@@ -142,16 +219,15 @@ class SimpleWeb:
                         padding: 10px;
                     }
                 """
-            else:
-                return """
-                    QTextEdit {
-                        background-color: #f0f0f0;
-                        color: #000000;
-                        font-family: hack, consolas, monospace;
-                        font-size: 14px;
-                        padding: 10px;
-                    }
-                """
+            return """
+                QTextEdit {
+                    background-color: #f0f0f0;
+                    color: #000000;
+                    font-family: hack, consolas, monospace;
+                    font-size: 14px;
+                    padding: 10px;
+                }
+            """
 
     class QuickResearch:
         Shortcut = "ctrl+O"
@@ -208,18 +284,24 @@ class SimpleWeb:
             self.parent = parent
             
         def chromium_spoofer_enabled(self):
-            settings = QSettings("Tudify", "SimpleWeb-Extensions")
-            return settings.value("Chromium Spoofer [alpha]", False, type=bool)
+            try:
+                settings = QSettings("Tudify", "SimpleWeb-Extensions")
+                return settings.value("Chromium Spoofer [alpha]", False, type=bool)
+            except Exception as e:
+                print("chromium_spoofer_enabled error:", e)
+                return False
 
         def apply_chromium_spoofer(self):
             try:
                 from PyQt6.QtWebEngineCore import QWebEngineProfile
                 profile = QWebEngineProfile.defaultProfile()
+                chromium_ua = getattr(self.parent, "ChromiumUserAgent", None) or _default_chromium_user_agent()
+                regular_ua = getattr(self.parent, "UserAgent", None) or _default_user_agent()
                 if self.chromium_spoofer_enabled():
-                    profile.setHttpUserAgent(ChromiumUserAgent)
+                    profile.setHttpUserAgent(chromium_ua)
                     print("Chromium Spoofer enabled")
                 else:
-                    profile.setHttpUserAgent(UserAgent)
+                    profile.setHttpUserAgent(regular_ua)
             except Exception as e:
                 print("apply_chromium_spoofer error:", e)
 
@@ -248,24 +330,20 @@ class SimpleWeb:
             settings = QSettings("Tudify", "SimpleWeb-Extensions")
             return settings.value("Music sidebar (ctrl + M)", False, type=bool)
 
+        def _load_music_service(self):
+            self.music_service = self.app_settings.value("music_service", "Spotify")
+
         def create_music_sidebar(self):
             if self.music_sidebar is not None:
                 return
 
+            self._load_music_service()
             self.music_sidebar = QDockWidget(self.parent)
             self.music_sidebar.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea)
 
             self.music_browser = QWebEngineView()
 
-            music_services = {
-                "Spotify": "https://open.spotify.com",
-                "Apple Music": "https://music.apple.com/",
-                "Amazon Music": "https://music.amazon.com/",
-                "Youtube Music": "https://music.youtube.com/",
-                "Tidal": "https://tidal.com"
-            }
-
-            ai_url = music_services.get(self.music_service, "https://open.spotify.com/")
+            ai_url = MUSIC_SERVICE_URLS.get(self.music_service, MUSIC_SERVICE_URLS["Spotify"])
             self.music_browser.setUrl(QUrl(ai_url))
             self.music_browser.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
             self.music_browser.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
@@ -293,21 +371,12 @@ class SimpleWeb:
             self.music_sidebar.setTitleBarWidget(title_widget)
 
         def refresh_page(self):
+            self._load_music_service()
             if self.music_sidebar is None:
                 self.create_music_sidebar()
-            else:
-                print("Ok vro")
-
-            music_services = {
-                "Spotify": "https://open.spotify.com",
-                "Apple Music": "https://music.apple.com/",
-                "Amazon Music": "https://music.amazon.com/",
-                "Youtube Music": "https://music.youtube.com/",
-                "Tidal": "https://tidal.com"
-            }
-
-            ai_url = music_services.get(self.music_service, "https://open.spotify.com/")
-            self.music_browser.setUrl(QUrl(ai_url))
+            if self.music_browser is not None:
+                ai_url = MUSIC_SERVICE_URLS.get(self.music_service, MUSIC_SERVICE_URLS["Spotify"])
+                self.music_browser.setUrl(QUrl(ai_url))
 
 def getinfo():
     base_dir = Path(__file__).resolve().parent
@@ -322,32 +391,3 @@ def getinfo():
     else:
         print("info.json not found!")
         return {}
-    
-name = getinfo().get("name", "unknown") # SimpleCode Internal 1.0 hits harder
-EngineName = getinfo().get("engine", "Unknown")
-EngineVer = getinfo().get("version", "Unknown")
-cpuname = platform.processor()
-os_name = platform.system()
-arch = platform.architecture()
-
-if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
-    macver = platform.mac_ver()[0].replace('.', '_')
-if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
-    os_namefinal = "Macintosh; Intel Mac OS X " + macver
-    os_namereport = "macOS"
-if os_name == "Linux":
-    os_namefinal = "X11; Linux x86_64"
-    os_namereport = "Linux"
-if os_name.startswith("Windows"):
-    os_namefinal = "Windows NT 10.0; Win64; x64"
-    os_namereport = "Windows"
-
-UserAgent = (
-    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    f"{EngineName}/{EngineVer} Safari/605.1.15"
-)
-
-ChromiumUserAgent = (
-    f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    f"Chromium/141.0 Safari/605.1.15"
-)

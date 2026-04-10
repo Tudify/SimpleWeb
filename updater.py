@@ -1,9 +1,18 @@
-"""SimpleWeb Updater Module, Checks for updates and prompts user to download if available."""
-import PyQt6.QtCore
-import PyQt6.QtGui
+# Copyright (c) 2025 tudify
+# 
+# This file may be used under the terms of the GNU General Public License
+# version 3.0 as published by the Free Software Foundation and appearing in
+# the file LICENSE included in the packaging of this file.  Please review the
+# following information to ensure the GNU General Public License version 3.0
+# requirements will be met: http://www.gnu.org/copyleft/gpl.html.
+# 
+# This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
+# WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+"""Fuckin updater bro"""
 import json, sys, webbrowser, ssl
 from pathlib import Path
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
+from PyQt6.QtWidgets import (QApplication, QMessageBox, QPushButton)
 from urllib.request import urlopen
 
 UPDATE_URL = "https://tudify.co.uk/update/simpleweb.txt"
@@ -33,7 +42,7 @@ def check_for_update():
 
     if remote_version > local_version:
         msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
+        msg.setIcon(QMessageBox.icon.Information)
         msg.setWindowTitle("Update Available")
         msg.setText(f"A new version is available!\n"
                     f"Would you like to download it?")
@@ -44,7 +53,7 @@ def check_for_update():
         later_button = QPushButton("Later")
         msg.addButton(later_button, QMessageBox.RejectRole)
         
-        msg.exec_()
+        msg.exec()
     else:
         print("No update available.")
 

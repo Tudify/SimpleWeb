@@ -1,8 +1,20 @@
+// Copyright (c) 2025 tudify
+//
+// This file may be used under the terms of the GNU General Public License
+// version 3.0 as published by the Free Software Foundation and appearing in
+// the file LICENSE included in the packaging of this file.  Please review the
+// following information to ensure the GNU General Public License version 3.0
+// requirements will be met: http://www.gnu.org/copyleft/gpl.html.
+//
+// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
+// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
 #include <iostream>
 #include <fstream>
 #include <string>
 
 // worlds least hardcoded JSON fetcher
+// if you're seeing this, its too late. you've seen too much. RUN
 
 using namespace std;
 
@@ -47,6 +59,7 @@ int main() {
     cout << "Engine: " << engine << endl;
     cout << "Development IDE: " << ide << endl;
     cout << "This project is made by volunteers. Please don’t steal our code!" << endl;
+    cout << "initialised. Waiting for Qt..." << endl;
 
     return 0;
 }
