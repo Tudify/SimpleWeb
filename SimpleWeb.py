@@ -1355,7 +1355,10 @@ ChromiumUserAgent = (
 )
 
 font_name = getinfo().get("font", "Hack")
-current_theme = darkdetect.theme()
+if os_namereport != "Linux":
+    current_theme = darkdetect.theme()
+else:
+    pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
