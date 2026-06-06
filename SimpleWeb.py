@@ -185,6 +185,11 @@ class SimpleWebAPI(QObject):
     @pyqtSlot(result=str)
     def reportAPIver(self):
         return APIver
+
+    @pyqtSlot(result=str)
+    def checkver(self):
+        # Return the SimpleWeb application version for runtime compatibility checks.
+        return getinfo().get("version", "0.0.0")
     
     @pyqtSlot(result=str)
     def getSearchEngine(self):
@@ -238,6 +243,62 @@ class SimpleWebAPI(QObject):
         else:
             if self.windows:
                 self.windows[-1].setWindowTitle(title)
+
+    def _account_file_path(self):
+        account_dir = Path.home() / ".tudifyID"
+        account_dir.mkdir(parents=True, exist_ok=True)
+        return account_dir / "Details.json"
+
+    def _load_accounts(self):
+        account_file = self._account_file_path()
+        if account_file.exists():
+            try:
+                with account_file.open("r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+
+    def _save_accounts(self, data):
+        account_file = self._account_file_path()
+        with account_file.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+    @pyqtSlot(str, str, result=str)
+    def CreateAccount(self, username, password):
+        if not username or not password:
+            return "error"
+        data = self._load_accounts()
+        accounts = data.get("accounts", {})
+        if username in accounts:
+            return "exists"
+        accounts[username] = {"password": password}
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, str, result=str)
+    def EditAccount(self, username, password):
+        if not username or not password:
+            return "error"
+        data = self._load_accounts()
+        accounts = data.get("accounts", {})
+        if username not in accounts:
+            return "not_found"
+        accounts[username]["password"] = password
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, str, result=str)
+    def VerifyAccount(self, username, password):
+        if not username or not password:
+            return "false"
+        data = self._load_accounts()
+        accounts = data.get("accounts", {})
+        if username not in accounts:
+            return "false"
+        return "true" if accounts[username].get("password") == password else "false"
 
 #MARK: SettingsWindow
 
@@ -712,8 +773,10 @@ class BrowserWindow(QMainWindow):
                     self.extensions_window.show()
                     self.url_popup.clear()
                     self.url_popup.hide()
+                    return
                 else:
                     print("Error")
+                    url_to_load = 'https://tudify.co.uk/simpleweb/404/'
             elif text == 'tudify://newtab':
                 url_to_load = 'https://tudify.co.uk/simpleweb/newtab.htm'
             else:
@@ -768,7 +831,10 @@ class BrowserWindow(QMainWindow):
         print(f"DEBUG: Applying {theme} Theme with accent: {accent}")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         style_dark = f"""
-            *{{font-family:{font_name}, hack, arial;}}
+            *{{
+                font-family:{font_name}, hack, arial;
+                color: #ffffff;
+            }}
             QMainWindow {{
                 background-color: #202326;
                 color: #ffffff;
@@ -861,7 +927,10 @@ class BrowserWindow(QMainWindow):
         """
 
         style_light = f"""
-            *{{font-family:{font_name}, hack, arial;}}
+            *{{
+                font-family:{font_name}, hack, arial;
+                color: #000000;
+                }}
             QMainWindow {{
                 background-color: #f5f5f5;
             }}
@@ -1079,8 +1148,14 @@ class BrowserWindow(QMainWindow):
 
         if not trackme_not_active:
             self.channel = QWebChannel(browser.page())
-            self.api = SimpleWebAPI()
+            # Expose the API object to JavaScript pages. Pass `self` so the API
+            # has a reference to the main window (used by setWindowTitle etc.).
+            self.api = SimpleWebAPI(self)
+            # Register under several common names so pages can find it reliably.
             self.channel.registerObject("SimpleWeb", self.api)
+            self.channel.registerObject("SimpleWebAPI", self.api)
+            self.channel.registerObject("simpleweb", self.api)
+            self.channel.registerObject("simplewebapi", self.api)
             browser.page().setWebChannel(self.channel)
 
     def update_tab_title(self, browser):
@@ -1301,7 +1376,7 @@ name = _info.get("name", "null")
 builtonIDE = _info.get("ide", "null")
 EngineName = _info.get("engine", "null")
 EngineVer = _info.get("version", "null")
-APIver = "1.0.3" 
+APIver = "1.0.4" 
 mem = round(psutil.virtual_memory().total / (1024 ** 3), 1)
 
 if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
@@ -1355,10 +1430,7 @@ ChromiumUserAgent = (
 )
 
 font_name = getinfo().get("font", "Hack")
-if os_namereport != "Linux":
-    current_theme = darkdetect.theme()
-else:
-    pass
+current_theme = darkdetect.theme()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
