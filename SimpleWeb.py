@@ -188,7 +188,6 @@ class SimpleWebAPI(QObject):
 
     @pyqtSlot(result=str)
     def checkver(self):
-        # Return the SimpleWeb application version for runtime compatibility checks.
         return getinfo().get("version", "0.0.0")
     
     @pyqtSlot(result=str)
@@ -254,15 +253,49 @@ class SimpleWebAPI(QObject):
         if account_file.exists():
             try:
                 with account_file.open("r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                if not isinstance(data, dict):
+                    return {"accounts": {}}
+                if "accounts" not in data:
+                    # Accept legacy files that stored accounts at the top level.
+                    if all(isinstance(v, dict) for v in data.values()):
+                        data = {"accounts": data}
+                    else:
+                        data.setdefault("accounts", {})
+                return data
             except Exception:
-                return {}
-        return {}
+                return {"accounts": {}}
+        return {"accounts": {}}
 
     def _save_accounts(self, data):
         account_file = self._account_file_path()
+        if not isinstance(data, dict):
+            data = {"accounts": {}}
+        if "accounts" not in data:
+            data = {"accounts": data}
         with account_file.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
+
+    def _ensure_account_fields(self, account):
+        if "devices" not in account:
+            account["devices"] = {}
+        if "Fullname" not in account:
+            account["Fullname"] = ""
+        if "Phone Number" not in account:
+            account["Phone Number"] = ""
+
+    def _get_account(self, username):
+        data = self._load_accounts()
+        accounts = data.get("accounts", {})
+        account = accounts.get(username)
+        if account is None:
+            return None, data, accounts
+        self._ensure_account_fields(account)
+        return account, data, accounts
+
+    def _generate_device_name(self, fullname):
+        first_name = fullname.split()[0] if fullname else "User"
+        return f"{first_name}'s Device"
 
     @pyqtSlot(str, str, result=str)
     def CreateAccount(self, username, password):
@@ -272,7 +305,12 @@ class SimpleWebAPI(QObject):
         accounts = data.get("accounts", {})
         if username in accounts:
             return "exists"
-        accounts[username] = {"password": password}
+        accounts[username] = {
+            "password": password,
+            "Fullname": "",
+            "Phone Number": "",
+            "devices": {}
+        }
         data["accounts"] = accounts
         self._save_accounts(data)
         return "success"
@@ -285,7 +323,9 @@ class SimpleWebAPI(QObject):
         accounts = data.get("accounts", {})
         if username not in accounts:
             return "not_found"
-        accounts[username]["password"] = password
+        account = accounts[username]
+        self._ensure_account_fields(account)
+        account["password"] = password
         data["accounts"] = accounts
         self._save_accounts(data)
         return "success"
@@ -299,6 +339,118 @@ class SimpleWebAPI(QObject):
         if username not in accounts:
             return "false"
         return "true" if accounts[username].get("password") == password else "false"
+
+    @pyqtSlot(str, result=str)
+    def GetFullName(self, username):
+        account, _, _ = self._get_account(username)
+        return account.get("Fullname", "") if account else ""
+
+    @pyqtSlot(str, str, result=str)
+    def SetFullName(self, username, fullname):
+        if not username:
+            return "error"
+        account, data, accounts = self._get_account(username)
+        if account is None:
+            return "not_found"
+        account["Fullname"] = fullname
+        accounts[username] = account
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, result=str)
+    def GetPhoneNumber(self, username):
+        account, _, _ = self._get_account(username)
+        return account.get("Phone Number", "") if account else ""
+
+    @pyqtSlot(str, str, result=str)
+    def UpdatePhoneNumber(self, username, phone_number):
+        if not username:
+            return "error"
+        account, data, accounts = self._get_account(username)
+        if account is None:
+            return "not_found"
+        account["Phone Number"] = phone_number
+        accounts[username] = account
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, str, str, str, str, str, str, result=str)
+    def AddDevice(self, username, device_name, device_type, serial_number, first_connected, last_seen):
+        if not username:
+            return "error"
+        account, data, accounts = self._get_account(username)
+        if account is None:
+            return "not_found"
+        self._ensure_account_fields(account)
+        device_name = device_name.strip() or self._generate_device_name(account.get("Fullname", ""))
+        device_type = device_type.lower()
+        if device_type not in {"mobile", "tablet", "pc", "tv"}:
+            return "invalid_type"
+        devices = account.setdefault("devices", {})
+        if device_name in devices:
+            return "exists"
+        devices[device_name] = {
+            "type": device_type,
+            "S/N": serial_number,
+            "First Connected": first_connected or "1/1/1970 0:00:00",
+            "Last Seen": last_seen or "1/1/1970 0:00:00"
+        }
+        accounts[username] = account
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, str, str, str, str, str, str, result=str)
+    def EditDevice(self, username, device_name, device_type, serial_number, first_connected, last_seen):
+        if not username or not device_name:
+            return "error"
+        account, data, accounts = self._get_account(username)
+        if account is None:
+            return "not_found"
+        self._ensure_account_fields(account)
+        devices = account.setdefault("devices", {})
+        if device_name not in devices:
+            return "device_not_found"
+        device_type = device_type.lower()
+        if device_type not in {"mobile", "tablet", "pc", "tv"}:
+            return "invalid_type"
+        devices[device_name] = {
+            "type": device_type,
+            "S/N": serial_number,
+            "First Connected": first_connected or devices[device_name].get("First Connected", "1/1/1970 0:00:00"),
+            "Last Seen": last_seen or devices[device_name].get("Last Seen", "1/1/1970 0:00:00")
+        }
+        accounts[username] = account
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
+
+    @pyqtSlot(str, result=str)
+    def GetDevices(self, username):
+        account, _, _ = self._get_account(username)
+        if account is None:
+            return "{}"
+        devices = account.get("devices", {})
+        return json.dumps(devices)
+
+    @pyqtSlot(str, str, result=str)
+    def DeleteDevice(self, username, device_name):
+        if not username or not device_name:
+            return "error"
+        account, data, accounts = self._get_account(username)
+        if account is None:
+            return "not_found"
+        self._ensure_account_fields(account)
+        devices = account.setdefault("devices", {})
+        if device_name not in devices:
+            return "device_not_found"
+        del devices[device_name]
+        accounts[username] = account
+        data["accounts"] = accounts
+        self._save_accounts(data)
+        return "success"
 
 #MARK: SettingsWindow
 
