@@ -28,19 +28,26 @@ locate your folder path that simpleweb.py and extensions.json are in, then cd to
 when you are in your folder in your command prompt, type the following
 
 on Linux and macOS:
-
 ```
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
-g++ -std=c++17 -o infoloaderbin infoloader.cpp
+dotnet new console -n InfoLoader -o infoloader-build --force
+cp infoloader.cs infoloader-build/Program.cs
+dotnet publish infoloader-build -c Release -r <RID> --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o infoloader-dist
+cp infoloader-dist/InfoLoader infoloaderbin
+chmod +x infoloaderbin
 pyinstaller --onefile --windowed --add-data "extensions.json:." --add-data "info.json:." --add-binary "simpleweblib:." --add-binary "infoloaderbin:." SimpleWeb.py
 ```
+<RID> is linux-x64 on Linux, osx-arm64 on macOS. Please replace <RID> with the correct OS.
 
 on Windows 
 
 ```
-g++ -std=c++17 -o simpleweblib startupinfo.cpp
-g++ -std=c++17 -o infoloaderbin infoloader.cpp
-pyinstaller --onefile --windowed --add-data "extensions.json;." --add-data "info.json;." --add-binary "simpleweblib;." SimpleWeb.py
+g++ -std=c++17 -o simpleweblib.exe startupinfo.cpp
+dotnet new console -n InfoLoader -o infoloader-build --force
+Copy-Item infoloader.cs infoloader-build\Program.cs -Force
+dotnet publish infoloader-build -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o infoloader-dist
+Copy-Item infoloader-dist\InfoLoader.exe infoloaderbin.exe
+pyinstaller --onefile --windowed --add-data "extensions.json;." --add-data "info.json;." --add-binary "simpleweblib.exe;." --add-binary "infoloaderbin.exe;." SimpleWeb.py
 ```
 
 ## API Documentation
