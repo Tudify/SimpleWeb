@@ -9,20 +9,31 @@
 # This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
 # WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-import sys, os, platform, urllib.parse, json, psutil, subprocess, updater, inspect, simplewebex, darkdetect
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QMenuBar,QMenu, QHBoxLayout, QWidget, QMessageBox,QVBoxLayout, QLineEdit, QTabWidget, QFileDialog,  QDialog, QLabel,  QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
-from PyQt6.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop
-from PyQt6.QtGui import QKeySequence, QAction, QShortcut
+import sys, updater, os, platform, urllib.parse, json, psutil, subprocess, inspect, simplewebex, darkdetect
+from pathlib import Path
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu, QHBoxLayout, QWidget, QMessageBox, QVBoxLayout, QLineEdit, QTabWidget, QTabBar, QFileDialog, QDialog, QLabel, QDialogButtonBox, QComboBox, QCheckBox, QColorDialog, QPushButton)
+from PyQt6.QtCore import QUrl, Qt, QSettings, QEvent, QObject, pyqtSlot, QEventLoop, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QAction, QShortcut, QColor
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest, QWebEngineFullScreenRequest, QWebEnginePermission, QWebEngineFileSystemAccessRequest
 from PyQt6.QtWebChannel import QWebChannel
-from pathlib import Path
 from simplewebex import SimpleWeb # this file's ln count needs saving.
+
+SWEversion = "5.0.0"
+USER_CONFIG_DIR = Path.home() / ".SimpleWeb"
+USER_THEMES_DIR = USER_CONFIG_DIR / "themes"
+USER_INFO_PATH = USER_CONFIG_DIR / "info.json"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 exe_path = os.path.join(script_dir, "simpleweblib")
 result = subprocess.run([exe_path], capture_output=True, text=True)
 print(result.stdout)
+subprocess.run(["./infoloaderbin"])
+
+def ensure_user_config():
+    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    USER_THEMES_DIR.mkdir(parents=True, exist_ok=True)
+
 #MARK: GetWebPage
 class getwebpage(QWebEnginePage):
     """Load a URL and return the rendered HTML source code."""
@@ -121,7 +132,7 @@ class AboutSWE(QDialog):
         self.setWindowTitle("About SimpleWebEngine")
         self.setGeometry(100, 100, 467, 120)
         layout = QVBoxLayout()
-        versions = EngineVer
+        versions = SWEversion
         self.heading_label = QLabel(f"This Program Uses SimpleWebEngine {versions}")
         layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignCenter)
         self.new_current_label = QLabel(f"An open-source project by tudify & its users. \n SimpleWebEngine is liscenced under the GPL v3 Lisence.\n Uses Qt and Chromium.")
@@ -142,7 +153,7 @@ class About(QDialog):
             Qt.WindowType.WindowCloseButtonHint
         )
         layout = QVBoxLayout()
-        versions = EngineVer
+        versions = SWEversion
         print(versions)
         self.heading_label = QLabel("SimpleWeb")
         self.heading_label.setObjectName("heading")
@@ -472,7 +483,7 @@ class SettingsWindow(QDialog):
         self.theme_label = QLabel("Choose your theme:")
         layout.addWidget(self.theme_label)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Auto", "Dark", "Light"])
+        self.theme_combo.addItems(get_available_themes())
         layout.addWidget(self.theme_combo)
         self.selabel = QLabel("Choose your search engine:")
         layout.addWidget(self.selabel)
@@ -565,7 +576,7 @@ class DebugWindow(QDialog):
         self.setWindowTitle("DebugWindow")
         self.setGeometry(100, 100, 400, 300)
 
-        self.json_path = os.path.join(os.path.dirname(__file__), "info.json")
+        self.json_path = str(USER_INFO_PATH)
         self.info = self.load_json()
         chromium_spoofer = None
         if parent is not None and hasattr(parent, "chromium_spoofer"):
@@ -589,7 +600,7 @@ class DebugWindow(QDialog):
         layout.addWidget(self.heading_label, alignment=Qt.AlignmentFlag.AlignLeft)
         self.ostitle = QLabel("Versioning")
         layout.addWidget(self.ostitle)
-        self.osdisplay = QLabel(f"SimpleWeb {EngineVer} on {os_namereport} ({cpunamefinal})")
+        self.osdisplay = QLabel(f"SimpleWeb {SWEversion} on {os_namereport} ({cpunamefinal})")
         layout.addWidget(self.osdisplay)
         self.cbn = QLabel("Set a Custom Browser Name:")
         layout.addWidget(self.cbn)
@@ -737,11 +748,11 @@ class BrowserWindow(QMainWindow):
             else:
                 print("version check passed: Windows 10/11")
         if os_namereport.startswith("macOS"):
-            if not macver.startswith("26_"):
+            if not macver.startswith(("26_", "27_", "28_", "29_")):
                 self.supportissuewindow()
                 print("version check failed!")
             else:
-                print("version check passed: macOS 26")
+                print("version check passed: macOS 26 or later")
         #if you imagine it supports linux, it supports linux!
     
     def supportissuewindow(self):
@@ -1076,6 +1087,19 @@ class BrowserWindow(QMainWindow):
                 background-color: #292c30;
                 border: 1px solid {accent};
             }}
+            QPushButton#newTabButton {{
+                background-color: #272C30;
+                color: #ffffff;
+                border: 1px solid #414346;
+                border-radius: 5px;
+                font-size: 16px;
+                margin: 0px;
+                padding: 0px;
+            }}
+            QPushButton#newTabButton:hover {{
+                background-color: #272C30;
+                border: 1px solid {accent};
+            }}
         """
 
         style_light = f"""
@@ -1155,6 +1179,19 @@ class BrowserWindow(QMainWindow):
             QTabBar::tab:selected {{
                 border: 1px solid {accent};
             }}
+            QPushButton#newTabButton {{
+                background-color: #e0e0e0;
+                color: #000000;
+                border: 1px solid #cccccc;
+                border-radius: 5px;
+                font-size: 16px;
+                margin: 0px;
+                padding: 0px;
+            }}
+            QPushButton#newTabButton:hover {{
+                background-color: #d0d0d0;
+                border: 1px solid #bbbbbb;
+            }}
         """
 
         if theme.lower() == "dark":
@@ -1170,6 +1207,10 @@ class BrowserWindow(QMainWindow):
             else:
                 self.setStyleSheet(style_dark)
         else:
+            qss = load_local_theme(theme)
+            if qss is not None:
+                self.setStyleSheet(qss)
+                return
             thmemsg = QMessageBox()
             thmemsg.setWindowTitle("Settings Error")
             thmemsg.setText(
@@ -1187,14 +1228,32 @@ class BrowserWindow(QMainWindow):
         if current_browser is not None:
             current_browser.setUrl(QUrl(url))
 
+    def new_tab_button(self):
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(5, 0, 0, 0)
+        layout.setSpacing(0)
+        self.button_new_tab = QPushButton("+")
+        self.button_new_tab.setObjectName("newTabButton")
+        self.button_new_tab.setFixedSize(22, 22)
+        self.button_new_tab.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.button_new_tab.clicked.connect(self.open_default_new_tab)
+        layout.addWidget(self.button_new_tab)
+        layout.setAlignment(Qt.AlignmentFlag.AlignLeft) # Keeps it near the last tab
+        self.tabs.setCornerWidget(container, Qt.Corner.BottomRightCorner)
+
     def create_tab_widget(self):
         self.tabs = QTabWidget()
-        self.tabs.tabCloseRequested.connect(lambda index: self.tabs.removeTab(index))
-        self.tabs.setTabPosition(QTabWidget.TabPosition.South)
+        self.tabs.setTabBar(NewTabBar(self.tabs))
         tabbar = self.tabs.tabBar()
+        tabbar.newTabClicked.connect(self.open_default_new_tab)
+        self.tabs.tabCloseRequested.connect(self.handle_tab_close_request)
+        self.tabs.setTabPosition(QTabWidget.TabPosition.South)
         tabbar.setExpanding(False)
+        tabbar.setMovable(True)
+        self.tabs.setMovable(True)
         tabbar.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0;} QTabBar::tab { margin-right: 5px; }")
+        tabbar.setStyleSheet("QTabBar { qproperty-drawBase: 0;} QTabBar::tab { margin-right: 8px; }")
         self.central_layout.addWidget(self.tabs)
         self.add_new_tab(QUrl('https://tudify.co.uk/simpleweb/newtab.htm'))
 
@@ -1238,11 +1297,13 @@ class BrowserWindow(QMainWindow):
         browser = QWebEngineView()
         trackme_not_active = self.TrackMeNot_enabled()
         if trackme_not_active:
-            profile = QWebEngineProfile(parent=browser)
-        else:
             profile = QWebEngineProfile.defaultProfile()
+        else:
+            profile = QWebEngineProfile("TrackMeNotProfile", self)
         page = QWebEnginePage(profile, browser)
         browser.setPage(page)
+        if self.theme.lower() == "dark" or (self.theme.lower() == "auto" and current_theme.lower() == "dark"):
+            page.setBackgroundColor(QColor("#202326"))
         page.fullScreenRequested.connect(self.handle_fullscreen_request)
         page.certificateError.connect(self.handle_cert_error)
         page.permissionRequested.connect(self.handle_permission)
@@ -1255,7 +1316,6 @@ class BrowserWindow(QMainWindow):
         profile.setHttpUserAgent(UserAgent)
         profile.setHttpCacheMaximumSize(10240)
         browser.page().titleChanged.connect(lambda title: self.update_tab_title(browser))
-        browser.setUrl(qurl)
         self.tabs.addTab(browser, qurl.toString())
         self.tabs.setCurrentWidget(browser)
         # MARK: Attribute Setter
@@ -1300,15 +1360,14 @@ class BrowserWindow(QMainWindow):
 
         if not trackme_not_active:
             self.channel = QWebChannel(browser.page())
-            # Expose the API object to JavaScript pages. Pass `self` so the API
-            # has a reference to the main window (used by setWindowTitle etc.).
             self.api = SimpleWebAPI(self)
-            # Register under several common names so pages can find it reliably.
             self.channel.registerObject("SimpleWeb", self.api)
             self.channel.registerObject("SimpleWebAPI", self.api)
             self.channel.registerObject("simpleweb", self.api)
             self.channel.registerObject("simplewebapi", self.api)
             browser.page().setWebChannel(self.channel)
+
+        browser.setUrl(qurl)
 
     def update_tab_title(self, browser):
         index = self.tabs.indexOf(browser)
@@ -1348,10 +1407,18 @@ class BrowserWindow(QMainWindow):
 
     def close_current_tab(self):
         current_index = self.tabs.currentIndex()
-        if (current_index != -1):
-            self.tabs.removeTab(current_index)
+        self.handle_tab_close_request(current_index)
+        if (self.tabs.count() == 0):
             print(f"EXIT: Reason - Tab count is ({self.tabs.count()})")
             if self.tabs.count() == 0: sys.exit()
+
+    def handle_tab_close_request(self, index):
+        tab_bar = self.tabs.tabBar()
+        if hasattr(tab_bar, '_remove_widget_from_groups'):
+            widget = self.tabs.widget(index)
+            if widget is not None:
+                tab_bar._remove_widget_from_groups(widget)
+        self.tabs.removeTab(index)
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow(self)
@@ -1493,13 +1560,45 @@ def menubar(parent: BrowserWindow):
 
         parent.setMenuBar(menu_bar)
 
-def getinfo():
-    base_dir = Path(__file__).resolve().parent
-    info_path = base_dir / "info.json"
-    if info_path.exists():
+def _sync_version_in_info(info_data):
+    """Update version in info dict and save to USER_INFO_PATH."""
+    if info_data.get("version") != SWEversion:
+        info_data["version"] = SWEversion
         try:
-            with info_path.open("r", encoding="utf-8") as f:
-                return json.load(f)
+            with USER_INFO_PATH.open("w", encoding="utf-8") as f:
+                json.dump(info_data, f, indent=4)
+        except OSError:
+            pass
+    return info_data
+
+def getinfo():
+    ensure_user_config()
+    base_dir = Path(__file__).resolve().parent
+    default_info_path = base_dir / "info.json"
+    if USER_INFO_PATH.exists():
+        try:
+            with USER_INFO_PATH.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            return _sync_version_in_info(data)
+        except Exception as e:
+            app = QApplication(sys.argv)
+            msg = QMessageBox()
+            msg.setWindowTitle("Fatal Error")
+            msg.setText(
+                "Fatal Error\n\n"
+                "SimpleWeb's internal files are damaged and cannot be used. \n"
+                "Please Reinstall SimpleWeb. (7)"
+            )
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
+            raise TypeError(f"info.json is malformed or corrupted. {e}")
+    elif default_info_path.exists():
+        try:
+            with default_info_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            data["version"] = SWEversion
+            create_default_user_info(data)
+            return data
         except Exception as e:
             app = QApplication(sys.argv)
             msg = QMessageBox()
@@ -1521,13 +1620,12 @@ def getinfo():
             "info.json (6)"
         )
         msg.exec()
-        raise FileNotFoundError("info.json must be in the same directory!")
+        raise FileNotFoundError("info.json not found!")
     
 _info = getinfo()
 name = _info.get("name", "null")
 builtonIDE = _info.get("ide", "null")
 EngineName = _info.get("engine", "null")
-EngineVer = _info.get("version", "null")
 APIver = "1.0.4" 
 mem = round(psutil.virtual_memory().total / (1024 ** 3), 1)
 
@@ -1558,7 +1656,7 @@ if os_name.startswith("Windows"):
     os_namefinal = f"Windows NT {WinNT}; Win64; x64"
     os_namereport = f"Windows {winver}"
 
-print(f"SimpleWeb V{EngineVer} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
+print(f"SimpleWeb V{SWEversion} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
 
 if cpuname == "arm" and os_namereport == "macOS":
     cpunamefinal = "Apple Silicon"
@@ -1573,7 +1671,7 @@ else:
 
 UserAgent = (
     f"Mozilla/5.0 ({os_namefinal}) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    f"{EngineName}/{EngineVer} Safari/605.1.15"
+    f"{EngineName}/{SWEversion} Safari/605.1.15"
 )
 
 ChromiumUserAgent = (
@@ -1584,6 +1682,429 @@ ChromiumUserAgent = (
 font_name = getinfo().get("font", "Hack")
 current_theme = darkdetect.theme()
 
+
+class TabGroup:
+    COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444", "#B81487"]
+    next_color = 0
+
+    def __init__(self):
+        self.color = TabGroup.COLORS[TabGroup.next_color % len(TabGroup.COLORS)]
+        TabGroup.next_color += 1
+        self.collapsed = False
+        self.members = []
+
+    def has_widget(self, widget):
+        return any(member["widget"] is widget for member in self.members)
+
+    def remove_member(self, widget):
+        self.members = [member for member in self.members if member["widget"] is not widget]
+
+    def visible_members(self, tab_widget):
+        return [member for member in self.members if tab_widget.indexOf(member["widget"]) != -1]
+
+    def hidden_members(self, tab_widget):
+        return [member for member in self.members if tab_widget.indexOf(member["widget"]) == -1]
+
+    def member_count(self):
+        return len(self.members)
+
+
+class NewTabBar(QTabBar):
+    newTabClicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.new_tab_button = QPushButton('+', self)
+        self.new_tab_button.setObjectName('newTabButton')
+        self.new_tab_button.setFixedSize(22, 22)
+        self.new_tab_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.new_tab_button.clicked.connect(self.newTabClicked.emit)
+        self.tab_groups = []
+        self.drag_start_index = -1
+        self._update_new_tab_button()
+        self.tabMoved.connect(self._on_tab_moved)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_new_tab_button()
+
+    def tabInserted(self, index):
+        super().tabInserted(index)
+        self._update_new_tab_button()
+
+    def tabRemoved(self, index):
+        super().tabRemoved(index)
+        self._update_new_tab_button()
+
+    def tabLayoutChange(self):
+        super().tabLayoutChange()
+        self._update_new_tab_button()
+
+    def _update_new_tab_button(self):
+        count = self.count()
+        if count == 0:
+            x = 5
+        else:
+            last_rect = self.tabRect(count - 1)
+            x = last_rect.right() + 5
+        y = max(0, (self.height() - self.new_tab_button.height()) // 2)
+        self.new_tab_button.move(x, y)
+        self.new_tab_button.raise_()
+        self.setMinimumWidth(x + self.new_tab_button.width() + 5)
+        self._update_group_handle_positions()
+        self.updateGeometry()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            tab_index = self.tabAt(event.pos())
+            if tab_index != -1 and self.parent() is not None:
+                try:
+                    self._remove_widget_from_groups(self.parent().widget(tab_index))
+                    self.parent().removeTab(tab_index)
+                    if self.parent().count() == 0:
+                        sys.exit()
+                except Exception:
+                    pass
+                return
+
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_start_index = self.tabAt(event.pos())
+
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.drag_start_index != -1:
+            release_index = self.tabAt(event.pos())
+            if release_index != -1 and release_index != self.drag_start_index:
+                self._group_tabs(self.drag_start_index, release_index)
+            elif release_index == -1:
+                self._remove_tab_from_group(self.parent().widget(self.drag_start_index))
+            self.drag_start_index = -1
+
+        super().mouseReleaseEvent(event)
+
+    def _on_tab_moved(self, from_index, to_index):
+        self._sync_all_group_orders()
+        self._update_group_handle_positions()
+
+    def _group_tabs(self, source_index, target_index):
+        tab_widget = self.parent()
+        if tab_widget is None:
+            return
+
+        source = tab_widget.widget(source_index)
+        target = tab_widget.widget(target_index)
+        if source is None or target is None or source is target:
+            return
+
+        source_group = self._find_group(source)
+        target_group = self._find_group(target)
+
+        if source_group is target_group and source_group is not None:
+            return
+
+        if source_group and target_group:
+            self._merge_groups(source_group, target_group)
+            group = source_group
+        else:
+            group = source_group or target_group or TabGroup()
+            if group not in self.tab_groups:
+                self.tab_groups.append(group)
+
+        self._add_widget_to_group(group, source, source_index)
+        self._add_widget_to_group(group, target, target_index)
+        self._refresh_group(group)
+
+    def _find_group(self, widget):
+        for group in self.tab_groups:
+            if group.has_widget(widget):
+                return group
+        return None
+
+    def _add_widget_to_group(self, group, widget, index):
+        if group.has_widget(widget):
+            return
+
+        text = self.parent().tabText(index) if index != -1 else ""
+        group.members.append({"widget": widget, "text": text, "handle_button": None})
+
+    def _merge_groups(self, source_group, target_group):
+        for member in target_group.members:
+            if not source_group.has_widget(member["widget"]):
+                source_group.members.append(member)
+
+        self._delete_group(target_group)
+
+    def _remove_tab_from_group(self, widget):
+        group = self._find_group(widget)
+        if not group:
+            return
+
+        if group.collapsed:
+            self._expand_group(group)
+
+        for member in list(group.members):
+            if member["widget"] is widget:
+                handle = member.get("handle_button")
+                if handle:
+                    handle.hide()
+                    handle.deleteLater()
+                group.remove_member(widget)
+                break
+
+        if group.member_count() < 2:
+            self._delete_group(group)
+        else:
+            self._refresh_group(group)
+
+    def _remove_widget_from_groups(self, widget):
+        group = self._find_group(widget)
+        if not group:
+            return
+
+        for member in list(group.members):
+            if member["widget"] is widget:
+                handle = member.get("handle_button")
+                if handle:
+                    handle.hide()
+                    handle.deleteLater()
+                group.remove_member(widget)
+                break
+
+        if group.member_count() < 2:
+            self._delete_group(group)
+        else:
+            self._refresh_group(group)
+
+    def _refresh_group(self, group):
+        if group.member_count() < 2:
+            self._delete_group(group)
+            return
+
+        self._ensure_group_handles(group)
+        self._ensure_group_contiguous(group)
+        if group.collapsed:
+            self._collapse_group(group)
+        self._update_group_handle_positions()
+
+    def _ensure_group_handles(self, group):
+        for member in group.members:
+            if member["handle_button"] is None:
+                button = QPushButton('▾', self)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.setFixedSize(4, 26)
+                button.clicked.connect(lambda _, grp=group: self._toggle_group(grp))
+                button.setStyleSheet(
+                    f"background-color: {group.color}; color: white; border: 1px solid #00000044;"
+                )
+                member["handle_button"] = button
+
+            if self.parent().indexOf(member["widget"]) != -1:
+                member["handle_button"].show()
+            else:
+                member["handle_button"].hide()
+
+            self._update_group_handle_style(group, member["handle_button"])
+
+    def _update_group_handle_style(self, group, button):
+        if not button:
+            return
+
+        direction = '▸' if group.collapsed else '▾'
+        button.setText(direction)
+        button.setStyleSheet(
+            f"background-color: {group.color}; color: white; border: 1px solid #00000044; border-radius: 3px;"
+        )
+
+    def _update_group_handle_positions(self):
+        for group in self.tab_groups:
+            if group.member_count() < 2:
+                for member in group.members:
+                    if member.get("handle_button"):
+                        member["handle_button"].hide()
+                continue
+
+            visible_members = group.visible_members(self.parent())
+            if not visible_members:
+                for member in group.members:
+                    if member.get("handle_button"):
+                        member["handle_button"].hide()
+                continue
+
+            # If group is collapsed, only show handle for the first visible member
+            if group.collapsed:
+                for i, member in enumerate(visible_members):
+                    if i == 0:
+                        widget = member["widget"]
+                        index = self.parent().indexOf(widget)
+                        if index != -1:
+                            rect = self.tabRect(index)
+                            if rect.isValid():
+                                handle = member.get("handle_button")
+                                if handle:
+                                    x = rect.left() + 2
+                                    y = max(0, (self.height() - handle.height()) // 2)
+                                    handle.move(x, y)
+                                    handle.raise_()
+                                    handle.show()
+                    else:
+                        handle = member.get("handle_button")
+                        if handle:
+                            handle.hide()
+                continue
+
+            for member in visible_members:
+                widget = member["widget"]
+                index = self.parent().indexOf(widget)
+                if index == -1:
+                    if member.get("handle_button"):
+                        member["handle_button"].hide()
+                    continue
+
+                rect = self.tabRect(index)
+                if not rect.isValid():
+                    continue
+
+                handle = member.get("handle_button")
+                if not handle:
+                    continue
+
+                x = rect.left() + 2
+                y = max(0, (self.height() - handle.height()) // 2)
+                handle.move(x, y)
+                handle.raise_()
+                handle.show()
+
+    def _toggle_group(self, group):
+        if group.collapsed:
+            self._expand_group(group)
+        else:
+            self._collapse_group(group)
+
+        for member in group.members:
+            if member.get("handle_button"):
+                self._update_group_handle_style(group, member["handle_button"])
+        self._update_group_handle_positions()
+
+    def _collapse_group(self, group):
+        group.collapsed = True
+        self._sync_group_order(group)
+        visible_members = group.visible_members(self.parent())
+        if len(visible_members) <= 1:
+            return
+
+        for member in reversed(visible_members[1:]):
+            idx = self.parent().indexOf(member["widget"])
+            if idx != -1:
+                self.parent().removeTab(idx)
+            # Hide handle when tab is hidden
+            if member.get("handle_button"):
+                member["handle_button"].hide()
+        self._update_group_handle_positions()
+
+    def _expand_group(self, group):
+        if not group.collapsed:
+            return
+
+        group.collapsed = False
+        self._sync_group_order(group)
+        if not group.members:
+            return
+
+        leader_widget = group.members[0]["widget"]
+        leader_index = self.parent().indexOf(leader_widget)
+        if leader_index == -1:
+            self.parent().addTab(leader_widget, group.members[0]["text"])
+            leader_index = self.parent().indexOf(leader_widget)
+
+        insert_index = leader_index + 1
+        for member in group.members:
+            if member["widget"] is leader_widget:
+                continue
+            if self.parent().indexOf(member["widget"]) == -1:
+                self.parent().insertTab(insert_index, member["widget"], member["text"])
+                insert_index += 1
+        
+        # Show handles when tabs are added back
+        self._update_group_handle_positions()
+
+    def _sync_group_order(self, group):
+        visible = group.visible_members(self.parent())
+        visible.sort(key=lambda member: self.parent().indexOf(member["widget"]))
+        hidden = group.hidden_members(self.parent())
+        group.members = visible + hidden
+
+    def _sync_all_group_orders(self):
+        for group in self.tab_groups:
+            self._sync_group_order(group)
+
+    def _ensure_group_contiguous(self, group):
+        visible_members = group.visible_members(self.parent())
+        if len(visible_members) < 2:
+            return
+
+        first_index = self.parent().indexOf(visible_members[0]["widget"])
+        if first_index == -1:
+            return
+
+        for offset, member in enumerate(visible_members):
+            current_index = self.parent().indexOf(member["widget"])
+            desired_index = first_index + offset
+            if current_index != -1 and current_index != desired_index:
+                try:
+                    self.moveTab(current_index, desired_index)
+                except Exception:
+                    pass
+
+    def _delete_group_handle(self, group):
+        for member in group.members:
+            handle = member.get("handle_button")
+            if handle:
+                handle.hide()
+                handle.deleteLater()
+                member["handle_button"] = None
+
+    def _delete_group(self, group):
+        self._delete_group_handle(group)
+        if group in self.tab_groups:
+            self.tab_groups.remove(group)
+
+def create_default_user_info(default_info):
+    ensure_user_config()
+    if not USER_INFO_PATH.exists():
+        try:
+            with USER_INFO_PATH.open("w", encoding="utf-8") as f:
+                json.dump(default_info, f, indent=4)
+        except OSError:
+            pass
+
+
+def scan_user_themes():
+    ensure_user_config()
+    return sorted(path.stem for path in USER_THEMES_DIR.glob("*.qss") if path.is_file())
+
+
+def get_available_themes():
+    themes = ["Auto", "Dark", "Light"]
+    themes.extend(scan_user_themes())
+    return themes
+
+
+def get_local_theme_path(theme_name):
+    ensure_user_config()
+    return USER_THEMES_DIR / f"{theme_name}.qss"
+
+
+def load_local_theme(theme_name):
+    theme_path = get_local_theme_path(theme_name)
+    if theme_path.exists():
+        try:
+            with theme_path.open("r", encoding="utf-8") as f:
+                return f.read()
+        except OSError as e:
+            print(f"DEBUG: failed loading local theme {theme_name}: {e}")
+    return None
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("SimpleWeb")
@@ -1591,7 +2112,7 @@ if __name__ == "__main__":
     app.setApplicationDisplayName("SimpleWeb")
     app.setOrganizationName("Tudify")
     if os_namereport == "macOS":
-        app.setStyle("Aqua")
+        app.setStyle("Fusion")
     else:
         pass
     window = BrowserWindow()

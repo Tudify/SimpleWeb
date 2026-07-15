@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstdlib>
 
 // worlds least hardcoded JSON fetcher
 // if you're seeing this, its too late. you've seen too much. RUN
@@ -36,9 +37,17 @@ string getValueFromJson(const string& json, const string& key) {
 }
 
 int main() {
-    ifstream file("info.json");
+    const char* home = getenv("HOME");
+    string filePath;
+    if (home) {
+        filePath = string(home) + "/.SimpleWeb/info.json";
+    } else {
+        filePath = "info.json";
+    }
+
+    ifstream file(filePath);
     if (!file.is_open()) {
-        cout << "Could not open info.json\n";
+        cout << "Could not open " << filePath << "\n";
         return 1;
     }
 

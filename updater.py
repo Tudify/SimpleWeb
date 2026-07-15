@@ -19,7 +19,8 @@ UPDATE_URL = "https://tudify.co.uk/update/simpleweb.txt"
 RELEASES_URL = "https://github.com/tudify/simpleweb/releases"
 
 def load_local_version_numeric():
-    info_path = Path(__file__).resolve().parent / "info.json"
+    info_path = Path.home() / ".SimpleWeb/info.json"
+    print(info_path)
     if not info_path.exists():
         return 0
     try:
@@ -36,6 +37,8 @@ def check_for_update():
         with urlopen(UPDATE_URL, context=ctx) as response:
             remote_text = response.read().decode().strip()
             remote_version = int(remote_text.replace(".", ""))
+            print(f"Latest Version Available: {remote_text}")
+            print(f"Parsed As: {remote_version}")
     except Exception as e:
         print(f"Failed to fetch remote version: {e}")
         return
