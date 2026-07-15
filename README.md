@@ -5,7 +5,7 @@
 ### this version of simpleweb is in beta or sometimes alpha. expect lots of bugs, broken features and more.
 
 ## Build Instructions
-You will need ``` Python 3.11 or later ```, ``` gcc or clang ```, ```Command Prompt``` and an ```administrator account```
+You will need ``` Python 3.11 or later ```, ``` gcc or clang ```, ```Command Prompt```, ```dotnet``` and an ```administrator account```
 ### Step One:
 #### Install dependencies
 run the following command:
@@ -15,6 +15,8 @@ On Windows:
 
 On Linux or macOS:
 ``` pip3 install pyqt6 pyqtwebengine psutil pyinstaller ```
+
+as for dotnet and gcc/clang, get them from any reputable source.
 
 ### Step two:
 #### Create binary
