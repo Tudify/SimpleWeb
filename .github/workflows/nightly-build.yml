@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm python python-pip python-pyqt6 python-pyqt6-webengine base-devel git
+          pacman -S --noconfirm python python-pip python-pyqt6 python-pyqt6-webengine base-devel git dotnet-sdk
 
       - name: Install PyInstaller
         run: |
@@ -46,7 +46,12 @@ jobs:
       - name: Compile native helpers
         run: |
           g++ -std=c++17 -o simpleweblib startupinfo.cpp
-          g++ -std=c++17 -o infoloaderbin infoloader.cpp
+          dotnet new console -n InfoLoader -o infoloader-build --force
+          cp infoloader.cs infoloader-build/Program.cs
+          dotnet publish infoloader-build -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o infoloader-dist
+          cp infoloader-dist/InfoLoader infoloaderbin
+          chmod +x infoloaderbin
 
       - name: Build with PyInstaller
         run: |
@@ -83,6 +88,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Install dependencies
         run: |
           pip install PyQt6 PyQtWebEngine pyinstaller
@@ -90,7 +100,12 @@ jobs:
       - name: Compile native helpers
         run: |
           g++ -std=c++17 -o simpleweblib startupinfo.cpp
-          g++ -std=c++17 -o infoloaderbin infoloader.cpp
+          dotnet new console -n InfoLoader -o infoloader-build --force
+          cp infoloader.cs infoloader-build/Program.cs
+          dotnet publish infoloader-build -c Release -r osx-arm64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o infoloader-dist
+          cp infoloader-dist/InfoLoader infoloaderbin
+          chmod +x infoloaderbin
 
       - name: Build with PyInstaller
         run: |
@@ -134,6 +149,11 @@ jobs:
           python-version: '3.11'
           architecture: 'x64'
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Install dependencies
         run: |
           pip install PyQt6 PyQtWebEngine pyinstaller
@@ -147,7 +167,11 @@ jobs:
       - name: Compile native helpers
         run: |
           g++ -std=c++17 -o simpleweblib.exe startupinfo.cpp
-          g++ -std=c++17 -o infoloaderbin.exe infoloader.cpp
+          dotnet new console -n InfoLoader -o infoloader-build --force
+          Copy-Item infoloader.cs infoloader-build\Program.cs -Force
+          dotnet publish infoloader-build -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o infoloader-dist
+          Copy-Item infoloader-dist\InfoLoader.exe infoloaderbin.exe
         shell: pwsh
 
       - name: Build with PyInstaller
@@ -189,8 +213,8 @@ jobs:
       - name: Create Nightly Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: nightly
-          name: SimpleWeb Nightly (${{ needs.get-version.outputs.version }}-${{ needs.get-version.outputs.short_sha }})
+          tag_name: nightly-v${{ needs.get-version.outputs.version }}
+          name: SimpleWeb Nightly v${{ needs.get-version.outputs.version }} (${{ needs.get-version.outputs.short_sha }})
           body: |
             Automated nightly build of SimpleWeb from commit ${{ needs.get-version.outputs.short_sha }}.
 
