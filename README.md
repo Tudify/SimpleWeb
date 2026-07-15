@@ -26,9 +26,6 @@
 ⌘ + U / ctrl + U, then type extensions://
 ## Note 2: some features may be broken, buggy or messy. 
 
-# Note on Windows:
-<b> SimpleWeb team does not offer prebuilt Windows Binaries. </b>
-You can build SimpleWeb from source with no issue, as it is officially supported.
 ## Build Instructions
 You will need ``` Python 3.11 or later ```, ``` gcc or clang ```, ```Command Prompt``` and an ```administrator account```
 ### Step One:
