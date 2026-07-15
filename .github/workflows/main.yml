@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm python python-pyqt6 python-pyqtwebengine base-devel git
+          pacman -S --noconfirm python python-pyqt6 python-pyqt6-webengine base-devel git
       
       - name: Build for Arch Linux
         run: |
