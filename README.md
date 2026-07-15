@@ -39,6 +39,7 @@ on Windows
 
 ```
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
+g++ -std=c++17 -o infoloaderbin infoloader.cpp
 pyinstaller --onefile --windowed --add-data "extensions.json;." --add-data "info.json;." --add-binary "simpleweblib;." SimpleWeb.py
 ```
 
