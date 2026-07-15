@@ -1,30 +1,8 @@
 <img width="50" height="50" alt="simpleweb logo" src="https://github.com/user-attachments/assets/c88ec103-c9cc-4663-89b0-6e8908121889"/> 
 
-# SimpleWeb 4
+# SimpleWeb NIGHTLY
 
-### an all-new reimagination of SimpleWeb, with all-new controls, incredible stability & efficiency improvements and reimagined UI.
-<img width="1822" height="1118" alt="Screenshot 2025-11-11 at 18 21 17" src="https://github.com/user-attachments/assets/6b711711-b7de-46a6-92a8-6f553107edd6" />
-
-### note: macOS builds will appear to crash on start. give it ~15 seconds and it will open.
-
-## controls
-### Smart Bar
-⌘ + U / ctrl + U
-### New tab
-⌘ + T / ctrl + T
-### Close Tab
-⌘ + W / ctrl + W
-### Hide Tab Bar
-```F11```
-### Find on Page
-⌘ + F / ctrl + F
-### Refresh page
-⌘ + R / ctrl + R
-### Settings page
-⌘ + U / ctrl + U, then type tudify://settings.
-### Extensions page
-⌘ + U / ctrl + U, then type extensions://
-## Note 2: some features may be broken, buggy or messy. 
+### this version of simpleweb is in beta or sometimes alpha. expect lots of bugs, broken features and more.
 
 ## Build Instructions
 You will need ``` Python 3.11 or later ```, ``` gcc or clang ```, ```Command Prompt``` and an ```administrator account```
@@ -53,7 +31,8 @@ on Linux and macOS:
 
 ```
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
-pyinstaller --onefile --windowed --add-data "extensions.json:." --add-data "info.json:." --add-binary "simpleweblib:." SimpleWeb.py
+g++ -std=c++17 -o infoloaderbin infoloader.cpp
+pyinstaller --onefile --windowed --add-data "extensions.json:." --add-data "info.json:." --add-binary "simpleweblib:." --add-binary "infoloaderbin:." SimpleWeb.py
 ```
 
 on Windows 
@@ -62,10 +41,6 @@ on Windows
 g++ -std=c++17 -o simpleweblib startupinfo.cpp
 pyinstaller --onefile --windowed --add-data "extensions.json;." --add-data "info.json;." --add-binary "simpleweblib;." SimpleWeb.py
 ```
-
-you have now built simpleweb, look inside the folder simpleweb.py is, and look for a new folder called 'Dist'
-
-your new binary is there.
 
 ## API Documentation
 [View API Documentation](API.md)
