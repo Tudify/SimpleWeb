@@ -1,10 +1,8 @@
 name: Build and Release
-
 on:
   push:
     branches:
       - main
-
 jobs:
   get-version:
     runs-on: ubuntu-latest
@@ -12,7 +10,7 @@ jobs:
       version: ${{ steps.extract-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Extract version from info.json
         id: extract-version
         run: |
@@ -27,24 +25,37 @@ jobs:
       image: archlinux:latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm python python-pyqt6 python-pyqt6-webengine base-devel git
-      
-      - name: Build for Arch Linux
+          pacman -S --noconfirm python python-pip python-pyqt6 python-pyqt6-webengine base-devel git
+
+      - name: Install PyInstaller
         run: |
-          python -m py_compile SimpleWeb.py
-          python -m py_compile simplewebex.py
-          python -m py_compile updater.py
-      
+          pip install --break-system-packages --upgrade pip
+          pip install --break-system-packages pyinstaller
+
+      - name: Compile native helper (startupinfo.cpp)
+        run: |
+          g++ -std=c++17 -o simpleweblib startupinfo.cpp
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed \
+            --add-data "extensions.json:." \
+            --add-data "info.json:." \
+            --add-binary "simpleweblib:." \
+            SimpleWeb.py
+
       - name: Create archive
         run: |
           mkdir -p simpleweb-${{ needs.get-version.outputs.version }}-arch
-          cp SimpleWeb.py simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-arch/
+          cp dist/SimpleWeb simpleweb-${{ needs.get-version.outputs.version }}-arch/
+          cp simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-arch/
+          chmod +x simpleweb-${{ needs.get-version.outputs.version }}-arch/SimpleWeb
           tar -czf simpleweb-${{ needs.get-version.outputs.version }}-arch-linux-x86_64.tar.gz simpleweb-${{ needs.get-version.outputs.version }}-arch/
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -56,28 +67,40 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
-          pip install PyQt6 PyQtWebEngine
-      
-      - name: Build for macOS ARM64
+          pip install PyQt6 PyQtWebEngine pyinstaller
+
+      - name: Compile native helper (startupinfo.cpp)
         run: |
-          python -m py_compile SimpleWeb.py
-          python -m py_compile simplewebex.py
-          python -m py_compile updater.py
-      
+          g++ -std=c++17 -o simpleweblib startupinfo.cpp
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed \
+            --add-data "extensions.json:." \
+            --add-data "info.json:." \
+            --add-binary "simpleweblib:." \
+            SimpleWeb.py
+
       - name: Create macOS app bundle and archive
         run: |
           mkdir -p simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64
-          cp SimpleWeb.py simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
+          if [ -d "dist/SimpleWeb.app" ]; then
+            cp -R dist/SimpleWeb.app simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
+          else
+            cp dist/SimpleWeb simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
+            chmod +x simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/SimpleWeb
+          fi
+          cp simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
           tar -czf simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64.tar.gz simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -91,10 +114,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -102,7 +125,7 @@ jobs:
           name: SimpleWeb ${{ needs.get-version.outputs.version }}
           body: |
             Automated release of SimpleWeb ${{ needs.get-version.outputs.version }}
-            
+
             **Builds included:**
             - Arch Linux x86_64
             - macOS Apple Silicon (ARM64)
