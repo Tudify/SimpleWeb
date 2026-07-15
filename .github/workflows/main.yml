@@ -1,0 +1,115 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  get-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version from info.json
+        id: extract-version
+        run: |
+          VERSION=$(grep -o '"version": "[^"]*"' info.json | cut -d'"' -f4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+  build-arch:
+    needs: get-version
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm python python-pyqt6 python-pyqtwebengine base-devel git
+      
+      - name: Build for Arch Linux
+        run: |
+          python -m py_compile SimpleWeb.py
+          python -m py_compile simplewebex.py
+          python -m py_compile updater.py
+      
+      - name: Create archive
+        run: |
+          mkdir -p simpleweb-${{ needs.get-version.outputs.version }}-arch
+          cp SimpleWeb.py simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-arch/
+          tar -czf simpleweb-${{ needs.get-version.outputs.version }}-arch-linux-x86_64.tar.gz simpleweb-${{ needs.get-version.outputs.version }}-arch/
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-linux-build
+          path: simpleweb-${{ needs.get-version.outputs.version }}-arch-linux-x86_64.tar.gz
+
+  build-macos-arm64:
+    needs: get-version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install PyQt6 PyQtWebEngine
+      
+      - name: Build for macOS ARM64
+        run: |
+          python -m py_compile SimpleWeb.py
+          python -m py_compile simplewebex.py
+          python -m py_compile updater.py
+      
+      - name: Create macOS app bundle and archive
+        run: |
+          mkdir -p simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64
+          cp SimpleWeb.py simplewebex.py updater.py info.json extensions.json simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
+          tar -czf simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64.tar.gz simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64/
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-build
+          path: simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64.tar.gz
+
+  release:
+    needs: [get-version, build-arch, build-macos-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.get-version.outputs.version }}
+          name: SimpleWeb ${{ needs.get-version.outputs.version }}
+          body: |
+            Automated release of SimpleWeb ${{ needs.get-version.outputs.version }}
+            
+            **Builds included:**
+            - Arch Linux x86_64
+            - macOS Apple Silicon (ARM64)
+          files: |
+            arch-linux-build/simpleweb-${{ needs.get-version.outputs.version }}-arch-linux-x86_64.tar.gz
+            macos-arm64-build/simpleweb-${{ needs.get-version.outputs.version }}-macos-arm64.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
