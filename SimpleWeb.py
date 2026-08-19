@@ -17,7 +17,7 @@ from PyQt6.QtGui import QKeySequence, QAction, QShortcut, QColor
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest, QWebEngineFullScreenRequest, QWebEnginePermission, QWebEngineFileSystemAccessRequest
 from PyQt6.QtWebChannel import QWebChannel
-from simplewebex import SimpleWeb # this file's ln count needs saving.
+from simplewebex import SimpleWeb, run_startup_info # this file's ln count needs saving.
 
 SWEversion = "5.0.0"
 USER_CONFIG_DIR = Path.home() / ".SimpleWeb"
@@ -28,7 +28,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 exe_path = os.path.join(script_dir, "simpleweblib")
 result = subprocess.run([exe_path], capture_output=True, text=True)
 print(result.stdout)
-subprocess.run(["./infoloaderbin"])
+print(run_startup_info(), end="")
 
 def ensure_user_config():
     USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -259,209 +259,7 @@ class SimpleWebAPI(QObject):
         account_dir.mkdir(parents=True, exist_ok=True)
         return account_dir / "Details.json"
 
-    def _load_accounts(self):
-        account_file = self._account_file_path()
-        if account_file.exists():
-            try:
-                with account_file.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if not isinstance(data, dict):
-                    return {"accounts": {}}
-                if "accounts" not in data:
-                    # Accept legacy files that stored accounts at the top level.
-                    if all(isinstance(v, dict) for v in data.values()):
-                        data = {"accounts": data}
-                    else:
-                        data.setdefault("accounts", {})
-                return data
-            except Exception:
-                return {"accounts": {}}
-        return {"accounts": {}}
-
-    def _save_accounts(self, data):
-        account_file = self._account_file_path()
-        if not isinstance(data, dict):
-            data = {"accounts": {}}
-        if "accounts" not in data:
-            data = {"accounts": data}
-        with account_file.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-
-    def _ensure_account_fields(self, account):
-        if "devices" not in account:
-            account["devices"] = {}
-        if "Fullname" not in account:
-            account["Fullname"] = ""
-        if "Phone Number" not in account:
-            account["Phone Number"] = ""
-
-    def _get_account(self, username):
-        data = self._load_accounts()
-        accounts = data.get("accounts", {})
-        account = accounts.get(username)
-        if account is None:
-            return None, data, accounts
-        self._ensure_account_fields(account)
-        return account, data, accounts
-
-    def _generate_device_name(self, fullname):
-        first_name = fullname.split()[0] if fullname else "User"
-        return f"{first_name}'s Device"
-
-    @pyqtSlot(str, str, result=str)
-    def CreateAccount(self, username, password):
-        if not username or not password:
-            return "error"
-        data = self._load_accounts()
-        accounts = data.get("accounts", {})
-        if username in accounts:
-            return "exists"
-        accounts[username] = {
-            "password": password,
-            "Fullname": "",
-            "Phone Number": "",
-            "devices": {}
-        }
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, str, result=str)
-    def EditAccount(self, username, password):
-        if not username or not password:
-            return "error"
-        data = self._load_accounts()
-        accounts = data.get("accounts", {})
-        if username not in accounts:
-            return "not_found"
-        account = accounts[username]
-        self._ensure_account_fields(account)
-        account["password"] = password
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, str, result=str)
-    def VerifyAccount(self, username, password):
-        if not username or not password:
-            return "false"
-        data = self._load_accounts()
-        accounts = data.get("accounts", {})
-        if username not in accounts:
-            return "false"
-        return "true" if accounts[username].get("password") == password else "false"
-
-    @pyqtSlot(str, result=str)
-    def GetFullName(self, username):
-        account, _, _ = self._get_account(username)
-        return account.get("Fullname", "") if account else ""
-
-    @pyqtSlot(str, str, result=str)
-    def SetFullName(self, username, fullname):
-        if not username:
-            return "error"
-        account, data, accounts = self._get_account(username)
-        if account is None:
-            return "not_found"
-        account["Fullname"] = fullname
-        accounts[username] = account
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, result=str)
-    def GetPhoneNumber(self, username):
-        account, _, _ = self._get_account(username)
-        return account.get("Phone Number", "") if account else ""
-
-    @pyqtSlot(str, str, result=str)
-    def UpdatePhoneNumber(self, username, phone_number):
-        if not username:
-            return "error"
-        account, data, accounts = self._get_account(username)
-        if account is None:
-            return "not_found"
-        account["Phone Number"] = phone_number
-        accounts[username] = account
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, str, str, str, str, str, str, result=str)
-    def AddDevice(self, username, device_name, device_type, serial_number, first_connected, last_seen):
-        if not username:
-            return "error"
-        account, data, accounts = self._get_account(username)
-        if account is None:
-            return "not_found"
-        self._ensure_account_fields(account)
-        device_name = device_name.strip() or self._generate_device_name(account.get("Fullname", ""))
-        device_type = device_type.lower()
-        if device_type not in {"mobile", "tablet", "pc", "tv"}:
-            return "invalid_type"
-        devices = account.setdefault("devices", {})
-        if device_name in devices:
-            return "exists"
-        devices[device_name] = {
-            "type": device_type,
-            "S/N": serial_number,
-            "First Connected": first_connected or "1/1/1970 0:00:00",
-            "Last Seen": last_seen or "1/1/1970 0:00:00"
-        }
-        accounts[username] = account
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, str, str, str, str, str, str, result=str)
-    def EditDevice(self, username, device_name, device_type, serial_number, first_connected, last_seen):
-        if not username or not device_name:
-            return "error"
-        account, data, accounts = self._get_account(username)
-        if account is None:
-            return "not_found"
-        self._ensure_account_fields(account)
-        devices = account.setdefault("devices", {})
-        if device_name not in devices:
-            return "device_not_found"
-        device_type = device_type.lower()
-        if device_type not in {"mobile", "tablet", "pc", "tv"}:
-            return "invalid_type"
-        devices[device_name] = {
-            "type": device_type,
-            "S/N": serial_number,
-            "First Connected": first_connected or devices[device_name].get("First Connected", "1/1/1970 0:00:00"),
-            "Last Seen": last_seen or devices[device_name].get("Last Seen", "1/1/1970 0:00:00")
-        }
-        accounts[username] = account
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
-
-    @pyqtSlot(str, result=str)
-    def GetDevices(self, username):
-        account, _, _ = self._get_account(username)
-        if account is None:
-            return "{}"
-        devices = account.get("devices", {})
-        return json.dumps(devices)
-
-    @pyqtSlot(str, str, result=str)
-    def DeleteDevice(self, username, device_name):
-        if not username or not device_name:
-            return "error"
-        account, data, accounts = self._get_account(username)
-        if account is None:
-            return "not_found"
-        self._ensure_account_fields(account)
-        devices = account.setdefault("devices", {})
-        if device_name not in devices:
-            return "device_not_found"
-        del devices[device_name]
-        accounts[username] = account
-        data["accounts"] = accounts
-        self._save_accounts(data)
-        return "success"
+    # RIP tudifyID
 
 #MARK: SettingsWindow
 
@@ -514,9 +312,7 @@ class SettingsWindow(QDialog):
         layout.addWidget(self.accent_note)
         self.load_settings()
         layout.addSpacing(20)
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | 
-                                      QDialogButtonBox.StandardButton.Cancel | 
-                                      QDialogButtonBox.StandardButton.Reset)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Reset)
         button_box.accepted.connect(self.save_settings)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -1636,9 +1432,11 @@ if os_name in ("Darwin", "macOS", "Mac", "Mac OS X"):
     else:
          os_namefinal = "Macintosh; Intel Mac OS X " + macver
     os_namereport = "macOS"
+    print(f"SimpleWeb V{SWEversion} running on: {os_namereport} {arch[0]} (ver: {macver}) with {mem}GB RAM, built with {builtonIDE}")
 if os_name == "Linux":
     os_namefinal = "X11; Linux " + arch[0]
     os_namereport = "Linux"
+    print(f"SimpleWeb V{SWEversion} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
 if os_name.startswith("Windows"):
     winver = platform.win32_ver()[0]
     if winver == 'XP':
@@ -1654,9 +1452,9 @@ if os_name.startswith("Windows"):
     elif winver == '10':
         WinNT = "10.0"
     os_namefinal = f"Windows NT {WinNT}; Win64; x64"
+    print(f"SimpleWeb V{SWEversion} running on: {os_namereport} {arch[0]} (ver: {winver}) with {mem} GB RAM, built with {builtonIDE}")
     os_namereport = f"Windows {winver}"
 
-print(f"SimpleWeb V{SWEversion} running on: {os_namereport} {arch[0]} with {mem} GB RAM, built with {builtonIDE}")
 
 if cpuname == "arm" and os_namereport == "macOS":
     cpunamefinal = "Apple Silicon"

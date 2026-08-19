@@ -10,6 +10,7 @@
 // WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <cstdlib>
@@ -18,6 +19,42 @@
 // if you're seeing this, its too late. you've seen too much. RUN
 
 using namespace std;
+namespace fs = filesystem;
+
+const string DEFAULT_INFO_JSON = R"({
+    "version": "5.0.0",
+    "name": "Tudify SimpleWeb",
+    "ide": "none",
+    "engine": "SWE-Multiplatform",
+    "font": "Hack"
+})";
+
+bool ensureInfoFile(const string& filePath) {
+    if (fs::exists(filePath)) {
+        cout << "info.json already exists." << endl;
+        return true;
+    }
+
+    const fs::path parentPath = fs::path(filePath).parent_path();
+    if (!parentPath.empty()) {
+        error_code error;
+        fs::create_directories(parentPath, error);
+        if (error) {
+            cerr << "Could not create the info.json directory: " << error.message() << endl;
+            return false;
+        }
+    }
+
+    ofstream file(filePath);
+    if (!file.is_open()) {
+        cerr << "Could not create " << filePath << endl;
+        return false;
+    }
+
+    file << DEFAULT_INFO_JSON << endl;
+    cout << "info.json was created." << endl;
+    return true;
+}
 
 string getValueFromJson(const string& json, const string& key) {
     string pattern = "\"" + key + "\"";
@@ -43,6 +80,10 @@ int main() {
         filePath = string(home) + "/.SimpleWeb/info.json";
     } else {
         filePath = "info.json";
+    }
+
+    if (!ensureInfoFile(filePath)) {
+        return 1;
     }
 
     ifstream file(filePath);

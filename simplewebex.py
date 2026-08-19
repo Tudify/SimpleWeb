@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QDockWidget, QTextEdit
 from PyQt6.QtCore import Qt, QSettings, QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings
-import platform, json, darkdetect
+import platform, json, darkdetect, subprocess
 from pathlib import Path
 
 MUSIC_SERVICE_URLS = {
@@ -23,6 +23,28 @@ MUSIC_SERVICE_URLS = {
     "YouTube Music": "https://music.youtube.com/",
     "Tidal": "https://tidal.com",
 }
+
+def run_startup_info():
+    """Run the native startup-info loader and return its console output."""
+    base_dir = Path(__file__).resolve().parent
+    executable_name = "startupinfo.exe" if platform.system() == "Windows" else "startupinfo"
+    executable_path = base_dir / executable_name
+
+    if not executable_path.exists():
+        print(f"Startup info loader not found: {executable_path}")
+        return ""
+
+    try:
+        result = subprocess.run(
+            [str(executable_path)], capture_output=True, text=True, check=False
+        )
+    except OSError as error:
+        print(f"Could not run startup info loader: {error}")
+        return ""
+
+    if result.stderr:
+        print(result.stderr, end="")
+    return result.stdout
 
 def _format_os_token():
     system = platform.system()
